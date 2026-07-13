@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { browser } from "@wdio/globals";
 import type { TauriCapabilities } from "@wdio/tauri-service";
+import { restoreDialogs } from "./helpers/app";
 
 const rootDir = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const tauriDir = join(rootDir, "src-tauri");
@@ -194,6 +195,14 @@ export const config: WebdriverIO.Config = {
   // On any failing test, capture a screenshot of the webview into
   // e2e/screenshots/ so CI (and local debugging) can inspect the failure state.
   async afterTest(test, _context, result) {
+    // Restore any window.confirm / window.prompt stubs installed during the test
+    // so they never leak into the next test's window state. Best-effort: a
+    // restore failure must not mask the test result or the screenshot capture.
+    try {
+      await restoreDialogs();
+    } catch {
+      /* session may already be gone; ignore */
+    }
     if (result.passed) return;
     try {
       const safe = `${test.parent} ${test.title}`

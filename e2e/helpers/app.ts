@@ -75,17 +75,84 @@ export async function setSelectByVisibleText(id: string, text: string): Promise<
   );
 }
 
+/** A dialog (confirm/prompt) intercepted by the stub, with its message. */
+export type CapturedDialog = { type: "confirm" | "prompt"; message: string };
+
+type DialogWindow = Window & {
+  __e2eDialogs?: CapturedDialog[];
+  __e2eOrigConfirm?: typeof window.confirm;
+  __e2eOrigPrompt?: typeof window.prompt;
+};
+
 /**
  * Override window.confirm / window.prompt in the webview so destructive flows
  * that gate on them (connection delete, table delete-from-list, item delete)
- * proceed deterministically. The app is a hash-router SPA with no full reloads,
- * so a single install persists across in-app navigation for the session.
+ * proceed deterministically. Each intercepted dialog's MESSAGE is pushed to
+ * window.__e2eDialogs so a flow can assert the dialog was actually shown and
+ * carried the expected text (see getDialogs / assertDialogShown).
+ *
+ * Page navigations reset window state, so callers install the stub right before
+ * the click that triggers the dialog; installing also clears the capture buffer
+ * so an assertion only sees dialogs from the current flow. restoreDialogs()
+ * puts the originals back (called from the afterTest hook).
  */
 export async function stubDialogs(promptResponse: string | null = null): Promise<void> {
   await browser.execute((resp: string | null) => {
-    window.confirm = () => true;
-    window.prompt = () => resp;
+    const w = window as DialogWindow;
+    w.__e2eDialogs = [];
+    if (!w.__e2eOrigConfirm) w.__e2eOrigConfirm = window.confirm;
+    if (!w.__e2eOrigPrompt) w.__e2eOrigPrompt = window.prompt;
+    window.confirm = (message?: string): boolean => {
+      w.__e2eDialogs?.push({ type: "confirm", message: message ?? "" });
+      return true;
+    };
+    window.prompt = (message?: string): string | null => {
+      w.__e2eDialogs?.push({ type: "prompt", message: message ?? "" });
+      return resp;
+    };
   }, promptResponse);
+}
+
+/** Retrieve the dialogs captured by stubDialogs since it was last installed. */
+export async function getDialogs(): Promise<CapturedDialog[]> {
+  return browser.execute(() => (window as DialogWindow).__e2eDialogs ?? []);
+}
+
+/**
+ * Assert a dialog of the given type was captured; when `contains` is given, also
+ * assert its message includes that substring. Returns the matching dialog.
+ */
+export async function assertDialogShown(
+  type: CapturedDialog["type"],
+  contains?: string,
+): Promise<CapturedDialog> {
+  const dialogs = await getDialogs();
+  const match = dialogs.find((d) => d.type === type);
+  if (!match) {
+    throw new Error(
+      `expected a ${type} dialog to be shown, saw ${JSON.stringify(dialogs)}`,
+    );
+  }
+  if (contains !== undefined) {
+    expect(match.message).toContain(contains);
+  }
+  return match;
+}
+
+/** Restore the original window.confirm / window.prompt and clear the buffer. */
+export async function restoreDialogs(): Promise<void> {
+  await browser.execute(() => {
+    const w = window as DialogWindow;
+    if (w.__e2eOrigConfirm) {
+      window.confirm = w.__e2eOrigConfirm;
+      w.__e2eOrigConfirm = undefined;
+    }
+    if (w.__e2eOrigPrompt) {
+      window.prompt = w.__e2eOrigPrompt;
+      w.__e2eOrigPrompt = undefined;
+    }
+    w.__e2eDialogs = [];
+  });
 }
 
 // --- navigation --------------------------------------------------------------
@@ -272,6 +339,14 @@ export function tableRowText(name: string): Promise<string> {
   return $(`//tr[.//a[@data-testid="table-link-${name}"]]`).getText();
 }
 
+/**
+ * Text of the index-count cell specifically (6th column: checkbox, name, status,
+ * PK, SK, index count) so the R4 assertion targets the count, not the whole row.
+ */
+export function tableIndexCountText(name: string): Promise<string> {
+  return $(`//tr[.//a[@data-testid="table-link-${name}"]]/td[6]`).getText();
+}
+
 /** Wait until the row's async describe has populated its status cell. */
 export async function waitForTableActive(name: string, timeout = 30000): Promise<void> {
   await browser.waitUntil(async () => (await tableRowText(name)).includes("アクティブ"), {
@@ -286,6 +361,9 @@ export async function deleteTableFromList(name: string): Promise<void> {
   const box = await waitDisplayed(`[aria-label="${name} を選択"]`);
   await box.click();
   await clickT("tables-delete");
+  // The list-delete path gates on a window.prompt that echoes the table name;
+  // verify it actually fired and carried the name (R6 list path).
+  await assertDialogShown("prompt", name);
   await browser.waitUntil(async () => !(await $(T(`table-link-${name}`)).isExisting()), {
     timeout: 20000,
     timeoutMsg: `table ${name} was not removed from the list`,
@@ -448,7 +526,18 @@ export async function deleteRowByPk(pkText: string): Promise<void> {
   await box.click();
   await clickT("explore-actions");
   await clickT("explore-delete");
+  // The item-delete path gates on a window.confirm; verify it was shown (R12).
+  await assertDialogShown("confirm");
   await waitForNotLoading();
+}
+
+/** Visible PK-link texts of the current explore result page, in row order. */
+export async function explorePkTexts(): Promise<string[]> {
+  return browser.execute(
+    (sel: string) =>
+      [...document.querySelectorAll(sel)].map((el) => (el.textContent ?? "").trim()),
+    T("explore-pk-link"),
+  );
 }
 
 /** True if a result row with the given PK-link text is present. */

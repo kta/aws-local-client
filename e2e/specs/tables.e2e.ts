@@ -10,6 +10,7 @@ import {
   openIndexesTab,
   openTableDetail,
   setupActiveConnection,
+  tableIndexCountText,
   tableRowText,
   waitDisplayed,
   waitForTableActive,
@@ -76,8 +77,9 @@ describe("tables", () => {
     expect(text).toContain("アクティブ");
     expect(text).toContain("id"); // partition key
     expect(text).toContain("sk"); // sort key
-    // Index count column: 1 GSI, or 0 when GSIs are unsupported.
-    expect(text).toContain(NO_GSI ? "0" : "1");
+    // Index-count cell specifically (not just anywhere in the row): 1 GSI, or 0
+    // when GSIs are unsupported.
+    expect((await tableIndexCountText("r4_table")).trim()).toBe(NO_GSI ? "0" : "1");
   });
 
   // R5 — create PK-only.

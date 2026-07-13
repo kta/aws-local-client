@@ -6,6 +6,7 @@ import {
   createItem,
   currentPageNumber,
   deleteRowByPk,
+  explorePkTexts,
   gotoExplore,
   itemRowExists,
   openItemByPk,
@@ -147,10 +148,18 @@ describe("items", () => {
     await runScan();
     await waitForRowCount(50);
     expect(await currentPageNumber()).toBe(1);
+    const page1Pks = await explorePkTexts();
+    expect(page1Pks).toHaveLength(50);
 
     await clickT("explore-next");
     await waitForRowCount(5); // 55 - 50
     expect(await currentPageNumber()).toBe(2);
+    // Page 2 must be genuinely different rows (the 55-item seed is deterministic
+    // and scan pagination uses ExclusiveStartKey), not a re-render of page 1:
+    // every page-2 PK is absent from page 1.
+    const page2Pks = await explorePkTexts();
+    expect(page2Pks).toHaveLength(5);
+    expect(page2Pks.every((pk) => !page1Pks.includes(pk))).toBe(true);
 
     await clickT("explore-prev");
     await waitForRowCount(50);
