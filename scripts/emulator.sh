@@ -75,7 +75,7 @@ pip_pidfile() { echo "${PID_DIR}/ministack-pip.pid"; }
 pip_logfile() { echo "${PID_DIR}/ministack-pip.log"; }
 
 start_pip() {
-  local pidfile logfile
+  local pidfile logfile PY
   pidfile="$(pip_pidfile)"
   logfile="$(pip_logfile)"
 
@@ -84,11 +84,19 @@ start_pip() {
     return 0
   fi
 
+  # Portable python: windows-latest Git Bash ships `python` but often not
+  # `python3`; prefer python3 where it exists, fall back to python.
+  PY="$(command -v python3 || command -v python)"
+  if [[ -z "${PY}" ]]; then
+    echo "[emulator] no python3/python on PATH" >&2
+    return 1
+  fi
+
   # Install ministack from PyPI (idempotent).
-  python3 -m pip install --quiet --disable-pip-version-check ministack
+  "${PY}" -m pip install --quiet --disable-pip-version-check ministack
 
   # ministack listens on 4566 by default.
-  nohup python3 -m ministack >"${logfile}" 2>&1 &
+  nohup "${PY}" -m ministack >"${logfile}" 2>&1 &
   echo $! >"${pidfile}"
   echo "[emulator] ministack-pip started (pid $(cat "${pidfile}")) on ${ENDPOINT}"
 }

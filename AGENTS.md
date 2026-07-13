@@ -37,12 +37,17 @@ docker run -d --name localstack -p 4566:4566 localstack/localstack:3
 (cd src-tauri && DDB_ENDPOINT=http://localhost:4566 cargo test -- --ignored)
 ```
 
-E2E — FORWARD REFERENCE, being added in P2-3/P2-4; commands not wired yet:
+E2E (full-app WebDriver suite; runs against a live emulator via `E2E_ENDPOINT`, default `http://localhost:4566`):
 
 ```bash
-# E2E_ENDPOINT default http://localhost:4566; suite runs against each emulator.
-scripts/emulator.sh start localstack   # start|stop|wait <localstack|floci|ministack>
+# 1. Build the debug app binary (cross-env keeps this working on Windows too).
+npm run e2e:build
+# 2. Start + wait for an emulator (<localstack|floci|ministack|ministack-pip>).
+#    Set EMU_PORT to publish on a free host port when 4566 is taken.
+scripts/emulator.sh start ministack && scripts/emulator.sh wait ministack
+# 3. Run the suite against that emulator's endpoint.
 E2E_ENDPOINT=http://localhost:4566 npm run e2e
+scripts/emulator.sh stop ministack     # tear down when done
 ```
 
 ## Architecture
@@ -59,7 +64,7 @@ E2E_ENDPOINT=http://localhost:4566 npm run e2e
 - `src-tauri/src/connections.rs` — profile store, `make_client`, localhost port scan (auto-detect).
 - `src-tauri/src/ddb.rs` — core DynamoDB commands (list/describe/scan/query/put/delete/create/delete table).
 - `src-tauri/src/lib.rs` — Tauri builder + `invoke_handler` command registry.
-- `e2e/` — spec-traceable E2E suite (see `e2e/SPEC-COVERAGE.md`); added in P2-3/P2-4.
+- `e2e/` — spec-traceable E2E suite (see `e2e/SPEC-COVERAGE.md`).
 - `docs/design/ui-mock.html` — approved design reference; UI must follow it.
 
 ## Conventions
@@ -93,5 +98,5 @@ Three levels:
   (default `http://localhost:8000`).
 - E2E: full-app WebDriver suite against a live emulator via `E2E_ENDPOINT`
   (default `http://localhost:4566`). Traceability rule: `e2e/SPEC-COVERAGE.md` maps every
-  requirement id (R1..R16) to at least one test; when a spec requirement changes, update the
+  requirement id (R1..R17) to at least one test; when a spec requirement changes, update the
   spec in `docs/superpowers/specs/` AND the coverage table in the same change.

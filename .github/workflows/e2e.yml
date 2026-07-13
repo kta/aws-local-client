@@ -40,8 +40,8 @@ jobs:
         with:
           workspaces: src-tauri
 
-      # Emulator images (per plan):
-      #   localstack -> localstack/localstack:4.4.0 (fallback: localstack/localstack:3)
+      # Emulator images (pinned in scripts/emulator.sh):
+      #   localstack -> localstack/localstack:3
       #   floci      -> floci/floci:latest
       #   ministack  -> ministackorg/ministack
       - name: Start emulator (${{ matrix.emulator }})

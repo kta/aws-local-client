@@ -31,6 +31,10 @@ function resolveAppBinary(): string {
   const candidates = [
     join(tauriDir, "target", "debug", "app"),
     join(tauriDir, "target", "debug", "neo-localstack-desktop"),
+    // Windows: the raw executable carries a .exe suffix. The Cargo package is
+    // named "app"; the productName-based name is the fallback if renamed.
+    join(tauriDir, "target", "debug", "app.exe"),
+    join(tauriDir, "target", "debug", "neo-localstack-desktop.exe"),
     join(
       tauriDir,
       "target",
@@ -95,7 +99,7 @@ function killLingeringApp(): void {
     if (process.platform === "win32") {
       execSync("taskkill /F /IM app.exe /T", { stdio: "ignore" });
     } else {
-      execSync(`pkill -f ${appBinaryPath}`, { stdio: "ignore" });
+      execSync(`pkill -f "${appBinaryPath}"`, { stdio: "ignore" });
     }
   } catch {
     /* nothing to kill */
