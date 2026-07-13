@@ -6,10 +6,12 @@ use app_lib::ddb::*;
 use serde_json::json;
 
 fn local_profile() -> ConnectionProfile {
+    let endpoint_url =
+        std::env::var("DDB_ENDPOINT").unwrap_or_else(|_| "http://localhost:8000".into());
     ConnectionProfile {
         id: "test".into(),
         name: "test".into(),
-        endpoint_url: "http://localhost:8000".into(),
+        endpoint_url,
         region: "ap-northeast-1".into(),
         access_key_id: "dummy".into(),
         secret_access_key: "dummy".into(),
