@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { ConnectionsPage } from "./pages/ConnectionsPage";
 import { Home } from "./pages/Home";
 import { ConnectionsProvider, useConnections } from "./state/connections";
 
@@ -33,7 +34,7 @@ function AppRoutes() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
-        <Route path="/connections" element={<Placeholder name="接続管理" />} />
+        <Route path="/connections" element={<ConnectionsPage />} />
         <Route path="/dynamodb" element={<Navigate to="/dynamodb/tables" replace />} />
         <Route path="/dynamodb/tables" element={<Placeholder name="テーブル一覧" />} />
         <Route path="/dynamodb/tables/:tableName" element={<Placeholder name="テーブル詳細" />} />
