@@ -21,6 +21,7 @@
 - ポートスキャン対象は `[4566, 8000, 4567]`(定数 `SCAN_PORTS`)
 - リージョン既定値は `ap-northeast-1`、認証情報既定値は `dummy`/`dummy`
 - テーブル作成の課金モードは `PAY_PER_REQUEST` 固定、GSI の Projection は `ALL` 固定(Phase 1)
+- **UI は承認済みモック `docs/design/ui-mock.html` を正とする。Task 8〜11 の UI 記述と矛盾する場合は `docs/superpowers/plans/2026-07-13-ui-revision.md` が優先。テーマはライトのみ(Phase 1)**
 
 ## File Structure
 
@@ -1767,6 +1768,10 @@ git commit -m "feat: add typed api layer over tauri invoke"
 
 ### Task 8: TS — 接続 Context・アプリシェル(ヘッダー + ルーティング + ホームグリッド)
 
+> **UI改訂あり:** ルーティング・レイアウト(サイドバー/パンくず/初期画面)・アイコンは
+> `docs/superpowers/plans/2026-07-13-ui-revision.md` と `docs/design/ui-mock.html` が優先。
+> 以下のコードは骨格の参考(ConnectionsProvider とテストはそのまま有効)。
+
 **Files:**
 - Create: `src/state/connections.tsx`
 - Create: `src/components/Layout.tsx`, `src/components/ErrorBanner.tsx`
@@ -2068,6 +2073,9 @@ git commit -m "feat: add app shell with connection context, header and service g
 
 ### Task 9: TS — 接続管理ページ(CRUD + 自動検出)
 
+> **UI改訂あり:** 「この接続を使う」ボタン・接続確認表示など
+> `docs/superpowers/plans/2026-07-13-ui-revision.md` の「接続管理」節が優先。
+
 **Files:**
 - Create: `src/pages/ConnectionsPage.tsx`
 - Modify: `src/App.tsx`(Placeholder を差し替え)
@@ -2277,6 +2285,9 @@ git commit -m "feat: add connections management page with auto detection"
 ---
 
 ### Task 10: TS — テーブル一覧 + テーブル作成/削除
+
+> **UI改訂あり:** 列構成(チェックボックス選択・ステータス・インデックス数)と削除 UI は
+> `docs/superpowers/plans/2026-07-13-ui-revision.md` の「テーブル一覧」節が優先。
 
 **Files:**
 - Create: `src/features/dynamodb/TablesPage.tsx`
@@ -2567,6 +2578,10 @@ git commit -m "feat: add dynamodb tables page with create and delete"
 ---
 
 ### Task 11: TS — テーブル詳細(概要タブ + 項目探索タブ + アイテム CRUD)
+
+> **UI改訂あり:** 本タスクは「テーブル詳細(概要/インデックス タブ)」と「項目を探索(独立画面
+> `/dynamodb/explore`)」の 2 画面構成に変更。`docs/superpowers/plans/2026-07-13-ui-revision.md` の
+> 「テーブル詳細 + 項目を探索」節が優先。ItemEditorModal と lastKey ページネーションのコードはそのまま有効。
 
 **Files:**
 - Create: `src/features/dynamodb/TableDetailPage.tsx`
