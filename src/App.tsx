@@ -2,13 +2,11 @@ import { useEffect, useRef } from "react";
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ConnectionsPage } from "./pages/ConnectionsPage";
+import { ExplorePage } from "./features/dynamodb/ExplorePage";
+import { TableDetailPage } from "./features/dynamodb/TableDetailPage";
 import { Home } from "./pages/Home";
 import { TablesPage } from "./features/dynamodb/TablesPage";
 import { ConnectionsProvider, useConnections } from "./state/connections";
-
-function Placeholder({ name }: { name: string }) {
-  return <div className="p-6 text-gray-500">{name} (準備中)</div>;
-}
 
 function AppRoutes() {
   const { profiles, loading } = useConnections();
@@ -38,8 +36,8 @@ function AppRoutes() {
         <Route path="/connections" element={<ConnectionsPage />} />
         <Route path="/dynamodb" element={<Navigate to="/dynamodb/tables" replace />} />
         <Route path="/dynamodb/tables" element={<TablesPage />} />
-        <Route path="/dynamodb/tables/:tableName" element={<Placeholder name="テーブル詳細" />} />
-        <Route path="/dynamodb/explore" element={<Placeholder name="項目を探索" />} />
+        <Route path="/dynamodb/tables/:tableName" element={<TableDetailPage />} />
+        <Route path="/dynamodb/explore" element={<ExplorePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
