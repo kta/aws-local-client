@@ -1,0 +1,76 @@
+name: Build
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  # Unsigned desktop bundles for macOS (universal) and Windows.
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+            artifact: desktop-macos-universal
+          - platform: windows-latest
+            args: ""
+            artifact: desktop-windows
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Add macOS universal targets
+        if: matrix.platform == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Unsigned build: no signing env is provided on purpose.
+      - name: Build desktop bundle
+        uses: tauri-apps/tauri-action@v0
+        with:
+          args: ${{ matrix.args }}
+          includeUpdaterJson: false
+
+      - name: Upload desktop bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            src-tauri/target/release/bundle/**
+            src-tauri/target/universal-apple-darwin/release/bundle/**
+          if-no-files-found: warn
+
+  # Web build "動作確認" (see plan Global Constraints): a successful `vite build`
+  # plus a mocked-backend render smoke via @tauri-apps/api/mocks.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Web render smoke (mocked backend)
+        run: npx vitest run src/web-smoke.test.tsx
+      - name: Upload web dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: dist/
+          if-no-files-found: error
