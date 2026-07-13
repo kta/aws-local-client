@@ -53,7 +53,7 @@ jobs:
       # tauri.conf.json beforeBuildCommand runs `npm run build`, so the
       # frontend dist is produced as part of the debug bundle.
       - name: Build debug app binary
-        run: npm run tauri build -- --debug
+        run: npm run e2e:build
 
       - name: Run E2E suite
         run: xvfb-run --auto-servernum npm run e2e
@@ -100,7 +100,7 @@ jobs:
           scripts/emulator.sh wait ministack-pip
 
       - name: Build debug app binary
-        run: npm run tauri build -- --debug
+        run: npm run e2e:build
 
       - name: Run E2E suite
         run: npm run e2e
@@ -149,7 +149,7 @@ jobs:
           scripts/emulator.sh wait ministack-pip
 
       - name: Build debug app binary
-        run: npm run tauri build -- --debug
+        run: npm run e2e:build
 
       - name: Run E2E suite
         run: npm run e2e
