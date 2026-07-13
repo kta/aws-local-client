@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from "r
 import { Layout } from "./components/Layout";
 import { ConnectionsPage } from "./pages/ConnectionsPage";
 import { Home } from "./pages/Home";
+import { TablesPage } from "./features/dynamodb/TablesPage";
 import { ConnectionsProvider, useConnections } from "./state/connections";
 
 function Placeholder({ name }: { name: string }) {
@@ -36,7 +37,7 @@ function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/connections" element={<ConnectionsPage />} />
         <Route path="/dynamodb" element={<Navigate to="/dynamodb/tables" replace />} />
-        <Route path="/dynamodb/tables" element={<Placeholder name="テーブル一覧" />} />
+        <Route path="/dynamodb/tables" element={<TablesPage />} />
         <Route path="/dynamodb/tables/:tableName" element={<Placeholder name="テーブル詳細" />} />
         <Route path="/dynamodb/explore" element={<Placeholder name="項目を探索" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
