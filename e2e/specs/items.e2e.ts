@@ -1,4 +1,4 @@
-import { $, expect } from "@wdio/globals";
+import { $, browser, expect } from "@wdio/globals";
 import {
   E2E_ENDPOINT,
   T,
@@ -208,6 +208,13 @@ describe("items", () => {
     await gotoExplore("it_crud");
     await runScan();
     await deleteRowByPk("seed1");
-    expect(await itemRowExists("seed1")).toBe(false);
+    // Deletion triggers an async reload of the result set; wait for the row to
+    // actually leave the DOM rather than asserting on the frame right after the
+    // click (the reload's loading flag can flip after waitForNotLoading returns,
+    // which is racy on slower runners such as Windows/msedge).
+    await browser.waitUntil(async () => !(await itemRowExists("seed1")), {
+      timeout: 15000,
+      timeoutMsg: "deleted item row (seed1) still present after reload",
+    });
   });
 });
