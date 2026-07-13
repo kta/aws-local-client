@@ -39,7 +39,9 @@ export function Home() {
   return (
     <div className="p-[22px] px-6 pb-[30px]">
       <div className="mb-4 flex items-center gap-3">
-        <h1 className="text-[20px] font-bold">サービス</h1>
+        <h1 className="text-[20px] font-bold" data-testid="home-heading">
+        サービス
+      </h1>
         <span className="text-[12.5px] text-[#5f6b7a]">
           接続: <b className="text-[#16191f]">{active?.name ?? "未選択"}</b>
         </span>
@@ -50,6 +52,7 @@ export function Home() {
             <Link
               key={s.id}
               to={s.to}
+              data-testid={`service-${s.id}`}
               className={`${CARD_BASE} border-[#d9dee3] text-[#16191f] hover:border-[#0972d3]`}
             >
               <Icon src={s.icon} />

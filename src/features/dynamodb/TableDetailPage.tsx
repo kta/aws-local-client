@@ -45,6 +45,7 @@ function DeleteTableModal({
         </p>
         <input
           className="w-full rounded border border-[#d9dee3] px-2 py-1 font-mono text-sm"
+          data-testid="td-delete-input"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={tableName}
@@ -68,6 +69,7 @@ function DeleteTableModal({
               }
             }}
             disabled={text !== tableName || busy}
+            data-testid="td-delete-confirm"
             className={`${BTN_DANGER} disabled:opacity-45`}
           >
             {busy ? "削除中..." : "削除"}
@@ -103,7 +105,12 @@ function IndexCard({ title, indexes }: { title: string; indexes: IndexDetail[] }
                 const sk = idx.keys.find((k) => k.keyType === "RANGE");
                 return (
                   <tr key={idx.name} className="last:[&>td]:border-0">
-                    <td className="border-b border-[#e9ecef] px-[14px] py-[9px] font-mono text-xs">{idx.name}</td>
+                    <td
+                      className="border-b border-[#e9ecef] px-[14px] py-[9px] font-mono text-xs"
+                      data-testid={`index-name-${idx.name}`}
+                    >
+                      {idx.name}
+                    </td>
                     <td className="border-b border-[#e9ecef] px-[14px] py-[9px]">{pk ? keyChip(pk) : "-"}</td>
                     <td className="border-b border-[#e9ecef] px-[14px] py-[9px]">
                       {sk ? keyChip(sk) : <span className="text-[#5f6b7a]">-</span>}
@@ -170,10 +177,10 @@ export function TableDetailPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <h1 className="text-[20px] font-bold">{tableName}</h1>
         <div className="flex-1" />
-        <button onClick={() => setDeleting(true)} className={BTN_DANGER}>
+        <button onClick={() => setDeleting(true)} data-testid="td-delete" className={BTN_DANGER}>
           テーブルの削除
         </button>
-        <button onClick={openExplore} className={BTN_PRIMARY}>
+        <button onClick={openExplore} data-testid="td-explore" className={BTN_PRIMARY}>
           テーブルの項目を探索
         </button>
       </div>
@@ -183,6 +190,7 @@ export function TableDetailPage() {
       <div className="mb-4 flex gap-0.5 overflow-x-auto border-b border-[#d9dee3]">
         <button
           onClick={() => setTab("overview")}
+          data-testid="td-tab-overview"
           className={`-mb-px whitespace-nowrap border-b-2 px-4 py-[9px] text-[13.5px] font-semibold ${
             tab === "overview" ? "border-[#0972d3] text-[#0972d3]" : "border-transparent text-[#5f6b7a]"
           }`}
@@ -191,6 +199,7 @@ export function TableDetailPage() {
         </button>
         <button
           onClick={() => setTab("indexes")}
+          data-testid="td-tab-indexes"
           className={`-mb-px whitespace-nowrap border-b-2 px-4 py-[9px] text-[13.5px] font-semibold ${
             tab === "indexes" ? "border-[#0972d3] text-[#0972d3]" : "border-transparent text-[#5f6b7a]"
           }`}
@@ -215,19 +224,19 @@ export function TableDetailPage() {
             <dl className={KV}>
               <div>
                 <dt className={DT}>パーティションキー</dt>
-                <dd className={DD}>{pk ? keyChip(pk) : "-"}</dd>
+                <dd className={DD} data-testid="td-pk">{pk ? keyChip(pk) : "-"}</dd>
               </div>
               <div>
                 <dt className={DT}>ソートキー</dt>
-                <dd className={DD}>{sk ? keyChip(sk) : <span className="text-[#5f6b7a]">-</span>}</dd>
+                <dd className={DD} data-testid="td-sk">{sk ? keyChip(sk) : <span className="text-[#5f6b7a]">-</span>}</dd>
               </div>
               <div>
                 <dt className={DT}>容量モード</dt>
-                <dd className={DD}>オンデマンド</dd>
+                <dd className={DD} data-testid="td-capacity">オンデマンド</dd>
               </div>
               <div>
                 <dt className={DT}>テーブルステータス</dt>
-                <dd className={DD}>
+                <dd className={DD} data-testid="td-status">
                   {detail.status === "ACTIVE" ? (
                     <span className="text-[12.5px] font-semibold text-[#037f0c]">● アクティブ</span>
                   ) : (
@@ -248,7 +257,7 @@ export function TableDetailPage() {
             <dl className={KV}>
               <div>
                 <dt className={DT}>項目数(概算)</dt>
-                <dd className={DD}>{detail.itemCount.toLocaleString()}</dd>
+                <dd className={DD} data-testid="td-item-count">{detail.itemCount.toLocaleString()}</dd>
               </div>
               <div>
                 <dt className={DT}>テーブルサイズ</dt>
@@ -264,7 +273,7 @@ export function TableDetailPage() {
       )}
 
       {detail && tab === "indexes" && (
-        <div>
+        <div data-testid="td-indexes">
           <IndexCard title={`グローバルセカンダリインデックス (${detail.gsis.length})`} indexes={detail.gsis} />
           <IndexCard title={`ローカルセカンダリインデックス (${detail.lsis.length})`} indexes={detail.lsis} />
         </div>

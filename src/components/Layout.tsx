@@ -1,8 +1,19 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { api } from "../api/client";
 import { useConnections } from "../state/connections";
 import { SideNav } from "./SideNav";
 
 const CONN_DEFAULT = "#7c4dff";
+
+const COMMON_REGIONS = [
+  "ap-northeast-1",
+  "ap-northeast-3",
+  "us-east-1",
+  "us-east-2",
+  "us-west-2",
+  "eu-west-1",
+  "eu-central-1",
+];
 
 type Crumb = { service?: string; parts: string[] };
 
@@ -18,12 +29,23 @@ function buildCrumb(pathname: string): Crumb | null {
 }
 
 export function Layout() {
-  const { profiles, active, setActiveId } = useConnections();
+  const { profiles, active, setActiveId, refresh } = useConnections();
   const location = useLocation();
   const navigate = useNavigate();
   const connColor = active?.color || CONN_DEFAULT;
   const showSidebar = location.pathname.startsWith("/dynamodb");
   const crumb = buildCrumb(location.pathname);
+
+  const regionOptions =
+    active && !COMMON_REGIONS.includes(active.region)
+      ? [active.region, ...COMMON_REGIONS]
+      : COMMON_REGIONS;
+
+  const handleRegionChange = async (region: string) => {
+    if (!active) return;
+    await api.saveConnection({ ...active, region });
+    await refresh();
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f0f1f3] text-[#16191f]">
@@ -53,11 +75,13 @@ export function Layout() {
           </span>
           <div className="flex items-center gap-2 rounded-full border border-white/[0.17] bg-white/[0.08] py-1 pl-2 pr-[10px]">
             <span
+              data-testid="header-conn-color"
               className="h-[10px] w-[10px] rounded-full"
               style={{ backgroundColor: connColor, boxShadow: `0 0 0 3px color-mix(in srgb, ${connColor} 30%, transparent)` }}
             />
             <select
               aria-label="接続を切り替え"
+              data-testid="header-conn-select"
               className="cursor-pointer border-none bg-transparent text-[13px] font-semibold text-white outline-none"
               value={active?.id ?? ""}
               onChange={(e) => setActiveId(e.target.value)}
@@ -74,9 +98,26 @@ export function Layout() {
               ))}
             </select>
           </div>
-          <span className="text-[12px] text-white/55">{active?.region ?? "-"}</span>
+          {active ? (
+            <select
+              aria-label="リージョンを変更"
+              data-testid="header-region-select"
+              className="cursor-pointer rounded-full border border-white/[0.17] bg-white/[0.08] px-[10px] py-1 text-[12px] font-semibold text-white outline-none hover:bg-white/20"
+              value={active.region}
+              onChange={(e) => void handleRegionChange(e.target.value)}
+            >
+              {regionOptions.map((r) => (
+                <option key={r} value={r} className="text-[#16191f]">
+                  {r}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-[12px] text-white/55">-</span>
+          )}
           <Link
             to="/connections"
+            data-testid="nav-connections"
             className="rounded-md border border-white/[0.17] bg-white/[0.08] px-[10px] py-[3px] text-[12px] font-semibold text-white hover:bg-white/20"
           >
             接続管理

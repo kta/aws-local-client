@@ -230,6 +230,7 @@ export function ExplorePage() {
         <div className="flex-1" />
         <select
           aria-label="テーブルを選択"
+          data-testid="explore-table-select"
           className={INPUT}
           value={tableParam}
           onChange={(e) => setSearchParams({ table: e.target.value })}
@@ -250,16 +251,29 @@ export function ExplorePage() {
         <div className="flex flex-col gap-3 p-4">
           <div className="flex flex-wrap items-center gap-x-[10px] gap-y-2">
             <label className="flex items-center gap-[6px] text-[13.5px] font-semibold">
-              <input type="radio" name="qmode" checked={mode === "query"} onChange={() => setMode("query")} />
+              <input
+                type="radio"
+                name="qmode"
+                data-testid="explore-mode-query"
+                checked={mode === "query"}
+                onChange={() => setMode("query")}
+              />
               クエリ
             </label>
             <label className="flex items-center gap-[6px] text-[13.5px] font-semibold">
-              <input type="radio" name="qmode" checked={mode === "scan"} onChange={() => setMode("scan")} />
+              <input
+                type="radio"
+                name="qmode"
+                data-testid="explore-mode-scan"
+                checked={mode === "scan"}
+                onChange={() => setMode("scan")}
+              />
               スキャン
             </label>
             <span className="text-[#5f6b7a]">|</span>
             <select
               aria-label="テーブルまたはインデックス"
+              data-testid="explore-index-select"
               className={INPUT}
               value={indexName}
               onChange={(e) => setIndexName(e.target.value)}
@@ -286,6 +300,7 @@ export function ExplorePage() {
                 <input
                   className={`${INPUT} w-[180px] font-mono`}
                   aria-label={`${pkDef?.name ?? "pk"} の値`}
+                  data-testid="explore-pk-value"
                   value={pkValue}
                   onChange={(e) => setPkValue(e.target.value)}
                 />
@@ -298,6 +313,7 @@ export function ExplorePage() {
                   </span>
                   <select
                     aria-label={`${skDef.name} 条件`}
+                    data-testid="explore-sk-op"
                     className={INPUT}
                     value={skOp}
                     onChange={(e) => setSkOp(e.target.value as typeof skOp)}
@@ -308,6 +324,7 @@ export function ExplorePage() {
                   <input
                     className={`${INPUT} w-[180px] font-mono`}
                     aria-label={`${skDef.name} の値`}
+                    data-testid="explore-sk-value"
                     value={skValue}
                     onChange={(e) => setSkValue(e.target.value)}
                   />
@@ -323,11 +340,13 @@ export function ExplorePage() {
                 className={INPUT}
                 placeholder="属性名"
                 aria-label="フィルタ属性名"
+                data-testid="explore-filter-attr"
                 value={filterAttr}
                 onChange={(e) => setFilterAttr(e.target.value)}
               />
               <select
                 aria-label="フィルタ条件"
+                data-testid="explore-filter-op"
                 className={INPUT}
                 value={filterOp}
                 onChange={(e) => setFilterOp(e.target.value as typeof filterOp)}
@@ -339,6 +358,7 @@ export function ExplorePage() {
                 className={`${INPUT} w-[180px] font-mono`}
                 placeholder="値 (文字列)"
                 aria-label="フィルタ値"
+                data-testid="explore-filter-value"
                 value={filterValue}
                 onChange={(e) => setFilterValue(e.target.value)}
               />
@@ -346,10 +366,10 @@ export function ExplorePage() {
           )}
 
           <div className="flex flex-wrap items-center gap-[10px]">
-            <button onClick={run} disabled={runDisabled} className={BTN_PRIMARY}>
+            <button onClick={run} disabled={runDisabled} data-testid="explore-run" className={BTN_PRIMARY}>
               実行
             </button>
-            <button onClick={reset} className={BTN}>
+            <button onClick={reset} data-testid="explore-reset" className={BTN}>
               リセット
             </button>
           </div>
@@ -358,12 +378,13 @@ export function ExplorePage() {
 
       <div className={`${CARD} mt-[14px] overflow-hidden`}>
         <div className={CARD_HEAD}>
-          返された項目 ({page?.count ?? 0})
+          <span data-testid="explore-count">返された項目 ({page?.count ?? 0})</span>
           <span className="flex-1" />
           <div className="relative">
             <button
               onClick={() => setActionsOpen((o) => !o)}
               disabled={selected.size === 0}
+              data-testid="explore-actions"
               className={BTN_SM}
             >
               アクション ▾
@@ -372,6 +393,7 @@ export function ExplorePage() {
               <div className="absolute right-0 z-10 mt-1 w-32 rounded-md border border-[#d9dee3] bg-white py-1 shadow-lg">
                 <button
                   onClick={deleteSelected}
+                  data-testid="explore-delete"
                   className="block w-full px-3 py-1.5 text-left text-[13px] text-[#d13212] hover:bg-[#f5f6f7]"
                 >
                   削除
@@ -379,7 +401,11 @@ export function ExplorePage() {
               </div>
             )}
           </div>
-          <button onClick={() => setEditing({ item: null })} className={BTN_SM_PRIMARY}>
+          <button
+            onClick={() => setEditing({ item: null })}
+            data-testid="explore-create-item"
+            className={BTN_SM_PRIMARY}
+          >
             項目を作成
           </button>
         </div>
@@ -413,11 +439,12 @@ export function ExplorePage() {
               )}
               {!loading &&
                 items.map((item, i) => (
-                  <tr key={i} className="hover:bg-[#0972d30d]">
+                  <tr key={i} data-testid="explore-row" className="hover:bg-[#0972d30d]">
                     <td className="border-b border-[#e9ecef] px-[14px] py-[9px]">
                       <input
                         type="checkbox"
                         aria-label="行を選択"
+                        data-testid="explore-row-checkbox"
                         checked={selected.has(i)}
                         onChange={() => toggleRow(i)}
                       />
@@ -427,6 +454,7 @@ export function ExplorePage() {
                         {c === pkName ? (
                           <button
                             onClick={() => setEditing({ item })}
+                            data-testid="explore-pk-link"
                             className="cursor-pointer font-semibold text-[#0972d3] hover:underline"
                           >
                             {cellText(item, c)}
@@ -451,14 +479,16 @@ export function ExplorePage() {
             <button
               onClick={prevPage}
               disabled={loading || keyStack.length === 0}
+              data-testid="explore-prev"
               className="rounded px-2 py-0.5 font-bold text-[#0972d3] disabled:cursor-default disabled:text-[#5f6b7a] disabled:opacity-50"
             >
               ◀
             </button>
-            <span className="font-bold text-[#16191f]">{pageNumber}</span>
+            <span className="font-bold text-[#16191f]" data-testid="explore-page">{pageNumber}</span>
             <button
               onClick={nextPage}
               disabled={loading || !page?.lastKey}
+              data-testid="explore-next"
               className="rounded px-2 py-0.5 font-bold text-[#0972d3] disabled:cursor-default disabled:text-[#5f6b7a] disabled:opacity-50"
             >
               ▶

@@ -21,8 +21,13 @@ tauri-build = { version = "2.6.3", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.11.3", features = [] }
+tauri = { version = "2.11.5", features = [] }
 tauri-plugin-log = "2"
+# E2E (WebdriverIO) support. Registered only in debug builds (see lib.rs).
+# `tauri-plugin-wdio` exposes the WDIO command surface; `tauri-plugin-wdio-webdriver`
+# runs an embedded W3C WebDriver HTTP server so macOS works without an external driver.
+tauri-plugin-wdio = "1"
+tauri-plugin-wdio-webdriver = "1"
 aws-sdk-dynamodb = "1"
 aws-smithy-runtime-api = "1"
 base64 = "0.22"
