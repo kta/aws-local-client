@@ -62,7 +62,12 @@ export function ItemEditorModal({
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-lg font-bold">{initial ? "アイテムの編集" : "アイテムの作成"}</h2>
           <label className="flex items-center gap-2 text-sm text-gray-600">
-            <input type="checkbox" checked={ddbMode} onChange={toggleMode} />
+            <input
+              type="checkbox"
+              data-testid="item-ddb-toggle"
+              checked={ddbMode}
+              onChange={toggleMode}
+            />
             DynamoDB JSON
           </label>
         </div>
@@ -73,18 +78,24 @@ export function ItemEditorModal({
         )}
         <textarea
           className="flex-1 resize-none rounded border border-gray-300 p-2 font-mono text-sm"
+          data-testid="item-json"
           value={text}
           onChange={(e) => setText(e.target.value)}
           spellCheck={false}
         />
         {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
         <div className="mt-3 flex justify-end gap-2">
-          <button onClick={onClose} className="rounded border border-gray-300 px-3 py-1 text-sm">
+          <button
+            onClick={onClose}
+            data-testid="item-cancel"
+            className="rounded border border-gray-300 px-3 py-1 text-sm"
+          >
             キャンセル
           </button>
           <button
             onClick={submit}
             disabled={submitting}
+            data-testid="item-save"
             className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {submitting ? "保存中..." : "保存"}

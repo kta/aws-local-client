@@ -1,11 +1,17 @@
-import { existsSync, rmSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { browser } from "@wdio/globals";
 import type { TauriCapabilities } from "@wdio/tauri-service";
 
 const rootDir = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const tauriDir = join(rootDir, "src-tauri");
+
+// CI uploads these directories on failure (see .github/workflows/e2e.yml).
+const logsDir = join(rootDir, "e2e", "logs");
+const screenshotsDir = join(rootDir, "e2e", "screenshots");
 
 // Tauri identifier from src-tauri/tauri.conf.json. The app persists connection
 // profiles to <app_config_dir>/connections.json; on macOS that is under
@@ -74,6 +80,24 @@ function connectionsConfigPath(): string {
 
 const appBinaryPath = resolveAppBinary();
 
+/**
+ * Kill any lingering debug-app process. The embedded-driver app can outlive its
+ * WebDriver session and keep TAURI_WEBDRIVER_PORT bound, which makes the *next*
+ * session attach to the stale window (observed: session 3 saw session 2's UI).
+ * Only safe to call in afterSession (the service owns launch in beforeSession).
+ */
+function killLingeringApp(): void {
+  try {
+    if (process.platform === "win32") {
+      execSync("taskkill /F /IM app.exe /T", { stdio: "ignore" });
+    } else {
+      execSync(`pkill -f ${appBinaryPath}`, { stdio: "ignore" });
+    }
+  } catch {
+    /* nothing to kill */
+  }
+}
+
 const tauriCapabilities: TauriCapabilities[] = [
   {
     browserName: "tauri",
@@ -86,6 +110,9 @@ const tauriCapabilities: TauriCapabilities[] = [
 export const config: WebdriverIO.Config = {
   runner: "local",
   tsConfigPath: join(rootDir, "e2e", "tsconfig.json"),
+
+  // WebdriverIO + driver logs land here so CI can upload them on failure.
+  outputDir: logsDir,
 
   specs: [join(rootDir, "e2e", "specs", "**", "*.e2e.ts")],
   maxInstances: 1,
@@ -135,14 +162,58 @@ export const config: WebdriverIO.Config = {
     timeout: 120000,
   },
 
-  // Reset persisted connection state before the whole run so the suite starts
-  // from a clean slate (see connectionsConfigPath docs above).
+  // Ensure the logs/screenshots output directories exist once per run.
   onPrepare() {
+    mkdirSync(logsDir, { recursive: true });
+    mkdirSync(screenshotsDir, { recursive: true });
+  },
+
+  // Reset persisted connection state before EACH spec-file session so every
+  // spec starts from zero registered connections (see connectionsConfigPath
+  // docs above). NOTE: do NOT kill the app here — the tauri-service launches it
+  // in its own beforeSession, and killing would race that launch.
+  beforeSession() {
     const path = connectionsConfigPath();
     if (existsSync(path)) {
       rmSync(path, { force: true });
       // eslint-disable-next-line no-console
       console.log(`[e2e] removed stale connections config: ${path}`);
+    }
+  },
+
+  // Ensure the app process is gone once the session ends, so a lingering window
+  // cannot keep the WebDriver port bound and leak into the next spec's session
+  // (observed: session 3 attached to session 2's stale UI).
+  afterSession() {
+    killLingeringApp();
+  },
+
+  // On any failing test, capture a screenshot of the webview into
+  // e2e/screenshots/ so CI (and local debugging) can inspect the failure state.
+  async afterTest(test, _context, result) {
+    if (result.passed) return;
+    try {
+      const safe = `${test.parent} ${test.title}`
+        .replace(/[^a-z0-9]+/gi, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 120);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const file = join(screenshotsDir, `${stamp}__${safe || "test"}.png`);
+      await browser.saveScreenshot(file);
+      // eslint-disable-next-line no-console
+      console.log(`[e2e] saved failure screenshot: ${file}`);
+    } catch (e) {
+      // A screenshot failure must never mask the original test failure.
+      const err = e as Error;
+      try {
+        writeFileSync(
+          join(logsDir, "screenshot-errors.log"),
+          `${new Date().toISOString()} ${test.title}: ${err.message}\n`,
+          { flag: "a" },
+        );
+      } catch {
+        /* ignore */
+      }
     }
   },
 };

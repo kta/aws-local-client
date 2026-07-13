@@ -15,7 +15,12 @@
 
 set -euo pipefail
 
-PORT=4566
+# Host port the emulator is published on (default 4566, matching E2E_ENDPOINT's
+# default). Override with EMU_PORT to run alongside an emulator that already owns
+# 4566 (e.g. a developer's own LocalStack). The container/process always listens
+# on 4566 internally; only the host publish port changes.
+PORT="${EMU_PORT:-4566}"
+CONTAINER_PORT=4566
 ENDPOINT="http://localhost:${PORT}"
 PID_DIR="${TMPDIR:-/tmp}/nlsd-emulator"
 mkdir -p "${PID_DIR}"
@@ -48,7 +53,7 @@ start_docker() {
   if docker ps -a --format '{{.Names}}' | grep -qx "${container}"; then
     docker start "${container}" >/dev/null
   else
-    docker run -d --name "${container}" -p "${PORT}:${PORT}" "${image}" >/dev/null
+    docker run -d --name "${container}" -p "${PORT}:${CONTAINER_PORT}" "${image}" >/dev/null
   fi
   echo "[emulator] ${name} started (container ${container}) on ${ENDPOINT}"
 }

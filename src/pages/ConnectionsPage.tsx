@@ -124,6 +124,7 @@ export function ConnectionsPage() {
         <button
           onClick={detect}
           disabled={detecting}
+          data-testid="scan-connections"
           className="rounded-lg border border-[#d9dee3] bg-white px-[14px] py-[6px] text-[13px] font-semibold text-[#16191f] hover:border-[#5f6b7a] disabled:cursor-not-allowed disabled:opacity-45"
         >
           {detecting ? "スキャン中..." : "ローカルをスキャン"}
@@ -153,6 +154,7 @@ export function ConnectionsPage() {
                 onClick={() =>
                   setEditing({ ...empty(), name: d.endpointUrl, endpointUrl: d.endpointUrl })
                 }
+                data-testid="detect-add"
                 className="rounded-md border border-[#d9dee3] bg-white px-[10px] py-[3px] text-[12px] font-semibold text-[#16191f] hover:border-[#5f6b7a]"
               >
                 この内容で追加
@@ -204,12 +206,14 @@ export function ConnectionsPage() {
             </button>
             <button
               onClick={() => setEditing({ ...p })}
+              data-testid="edit-connection"
               className="rounded-md border border-[#d9dee3] bg-white px-[10px] py-[3px] text-[12px] font-semibold text-[#16191f] hover:border-[#5f6b7a]"
             >
               編集
             </button>
             <button
               onClick={() => remove(p)}
+              data-testid="delete-connection"
               className="rounded-md border border-[color-mix(in_srgb,#d13212_45%,#d9dee3)] bg-white px-[10px] py-[3px] text-[12px] font-semibold text-[#d13212] hover:border-[#d13212]"
             >
               削除
@@ -242,7 +246,13 @@ export function ConnectionsPage() {
               "text",
               "conn-endpoint",
             )}
-            {field("リージョン", editing.region, (v) => setEditing({ ...editing, region: v }))}
+            {field(
+              "リージョン",
+              editing.region,
+              (v) => setEditing({ ...editing, region: v }),
+              "text",
+              "conn-region",
+            )}
             {field("Access Key ID", editing.accessKeyId, (v) =>
               setEditing({ ...editing, accessKeyId: v }),
             )}
@@ -252,8 +262,12 @@ export function ConnectionsPage() {
               (v) => setEditing({ ...editing, secretAccessKey: v }),
               "password",
             )}
-            {field("識別色 (例: #7c3aed)", editing.color ?? "", (v) =>
-              setEditing({ ...editing, color: v || null }),
+            {field(
+              "識別色 (例: #7c3aed)",
+              editing.color ?? "",
+              (v) => setEditing({ ...editing, color: v || null }),
+              "text",
+              "conn-color",
             )}
             <div className="flex justify-end gap-2 pt-2">
               <button
