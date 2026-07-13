@@ -136,8 +136,12 @@ export function TablesPage() {
   return (
     <div className="p-[22px] px-6 pb-[30px]">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-[20px] font-bold">テーブル</h1>
-        <span className="text-[12.5px] text-[#5f6b7a]">({tables.length})</span>
+        <h1 className="text-[20px] font-bold" data-testid="tables-heading">
+          テーブル
+        </h1>
+        <span className="text-[12.5px] text-[#5f6b7a]" data-testid="tables-count">
+          ({tables.length})
+        </span>
         <div className="flex-1" />
         <button
           onClick={deleteSelected}

@@ -99,11 +99,13 @@ export function ConnectionsPage() {
     value: string,
     onChange: (v: string) => void,
     type = "text",
+    testId?: string,
   ) => (
     <label className="block text-[13px]">
       <span className="text-[#5f6b7a]">{label}</span>
       <input
         type={type}
+        data-testid={testId}
         className="mt-1 w-full rounded-lg border border-[#d9dee3] bg-white px-[10px] py-[6px] text-[13px] text-[#16191f] outline-none focus:border-[#0972d3]"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -114,7 +116,9 @@ export function ConnectionsPage() {
   return (
     <div className="p-[22px] px-6 pb-[30px]">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-[20px] font-bold">接続管理</h1>
+        <h1 className="text-[20px] font-bold" data-testid="connections-heading">
+          接続管理
+        </h1>
         <span className="text-[12.5px] text-[#5f6b7a]">使用するエミュレータを選んで開始します</span>
         <div className="flex-1" />
         <button
@@ -126,6 +130,7 @@ export function ConnectionsPage() {
         </button>
         <button
           onClick={() => setEditing(empty())}
+          data-testid="add-connection"
           className="rounded-lg border border-[#0972d3] bg-[#0972d3] px-[14px] py-[6px] text-[13px] font-semibold text-white hover:bg-[#075bab]"
         >
           接続を追加
@@ -166,6 +171,7 @@ export function ConnectionsPage() {
         {profiles.map((p) => (
           <div
             key={p.id}
+            data-testid="connection-row"
             className="flex items-center gap-3 border-b border-[#e9ecef] px-4 py-3 last:border-b-0"
           >
             <span
@@ -191,6 +197,7 @@ export function ConnectionsPage() {
             )}
             <button
               onClick={() => use(p)}
+              data-testid="use-connection"
               className="rounded-md border border-[#0972d3] bg-[#0972d3] px-[10px] py-[3px] text-[12px] font-semibold text-white hover:bg-[#075bab]"
             >
               この接続を使う
@@ -221,9 +228,19 @@ export function ConnectionsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-[16px] font-bold">接続の設定</h2>
-            {field("名前", editing.name, (v) => setEditing({ ...editing, name: v }))}
-            {field("エンドポイント URL", editing.endpointUrl, (v) =>
-              setEditing({ ...editing, endpointUrl: v }),
+            {field(
+              "名前",
+              editing.name,
+              (v) => setEditing({ ...editing, name: v }),
+              "text",
+              "conn-name",
+            )}
+            {field(
+              "エンドポイント URL",
+              editing.endpointUrl,
+              (v) => setEditing({ ...editing, endpointUrl: v }),
+              "text",
+              "conn-endpoint",
             )}
             {field("リージョン", editing.region, (v) => setEditing({ ...editing, region: v }))}
             {field("Access Key ID", editing.accessKeyId, (v) =>
@@ -247,6 +264,7 @@ export function ConnectionsPage() {
               </button>
               <button
                 onClick={save}
+                data-testid="save-connection"
                 className="rounded-lg border border-[#0972d3] bg-[#0972d3] px-[14px] py-[6px] text-[13px] font-semibold text-white hover:bg-[#075bab]"
               >
                 保存

@@ -8,7 +8,16 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "e2e": "wdio run e2e/wdio.conf.ts",
+    "e2e:build": "VITE_E2E=1 tauri build --debug --no-bundle",
+    "e2e:typecheck": "tsc --noEmit -p e2e/tsconfig.json"
+  },
+  "comments": {
+    "overrides": "@wdio/tauri-service@1.2.0 pins @wdio/native-utils to 2.4.0 but its code imports installMockSyncOverride, which only exists from 2.5.0. Pin the compatible version until upstream fixes the mismatch."
+  },
+  "overrides": {
+    "@wdio/native-utils": "2.5.0"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
@@ -17,15 +26,24 @@
     "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1085.0",
     "@tailwindcss/vite": "^4.3.2",
     "@tauri-apps/cli": "^2.11.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "@wdio/cli": "^9.29.1",
+    "@wdio/local-runner": "^9.29.1",
+    "@wdio/mocha-framework": "^9.29.1",
+    "@wdio/spec-reporter": "^9.29.1",
+    "@wdio/tauri-plugin": "^1.2.0",
+    "@wdio/tauri-service": "^1.2.0",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.2",
+    "tsx": "^4.23.1",
     "typescript": "^7.0.2",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"
