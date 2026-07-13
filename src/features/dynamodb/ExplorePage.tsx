@@ -140,7 +140,11 @@ export function ExplorePage() {
   useEffect(() => {
     if (!detail) return;
     if (mode === "scan") void run();
-    else setPage(null);
+    else {
+      setPage(null);
+      setKeyStack([]);
+      setSelected(new Set());
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail?.name, mode]);
 

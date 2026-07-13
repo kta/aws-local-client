@@ -35,6 +35,7 @@ function DeleteTableModal({
 }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div className="w-full max-w-md rounded-lg bg-white p-6" onClick={(e) => e.stopPropagation()}>
@@ -49,6 +50,7 @@ function DeleteTableModal({
           placeholder={tableName}
           autoFocus
         />
+        {error && <div className="mt-2 text-sm text-[#d13212]">{error}</div>}
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className={BTN}>
             キャンセル
@@ -56,8 +58,11 @@ function DeleteTableModal({
           <button
             onClick={async () => {
               setBusy(true);
+              setError(null);
               try {
                 await onConfirm();
+              } catch (e) {
+                setError(toAppError(e).message);
               } finally {
                 setBusy(false);
               }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { toAppError } from "../../api/client";
 import type { DdbItem } from "../../lib/ddbJson";
 import { itemToPlain, plainToItem } from "../../lib/ddbJson";
 
@@ -44,7 +45,9 @@ export function ItemEditorModal({
       const item: DdbItem = ddbMode ? parsed : plainToItem(parsed);
       await onSubmit(item);
     } catch (e) {
-      setError(String(e));
+      // JSON.parse throws SyntaxError (an Error); invoke rejects with a plain
+      // {kind, message} AppError object which stringifies to [object Object].
+      setError(e instanceof Error ? String(e) : toAppError(e).message);
     } finally {
       setSubmitting(false);
     }
@@ -65,7 +68,7 @@ export function ItemEditorModal({
         </div>
         {!ddbMode && (
           <p className="mb-2 text-xs text-gray-400">
-            通常 JSON モードではセット型(SS/NS/BS)とバイナリ型は表現できません。必要な場合は DynamoDB JSON に切り替えてください。
+            通常 JSON モードではセット型(SS/NS/BS)とバイナリ型は表現できません。また JavaScript の安全な整数範囲(2^53)を超える整数は文字列として表示され、そのまま保存すると文字列型になります。N 型を保持したい場合は DynamoDB JSON に切り替えてください。
           </p>
         )}
         <textarea
