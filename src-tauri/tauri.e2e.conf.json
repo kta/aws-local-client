@@ -1,0 +1,7 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "identifier": "jp.dev.neolocalstack.desktop.e2e",
+  "app": {
+    "withGlobalTauri": true
+  }
+}

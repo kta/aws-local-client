@@ -13,10 +13,13 @@ const tauriDir = join(rootDir, "src-tauri");
 const logsDir = join(rootDir, "e2e", "logs");
 const screenshotsDir = join(rootDir, "e2e", "screenshots");
 
-// Tauri identifier from src-tauri/tauri.conf.json. The app persists connection
-// profiles to <app_config_dir>/connections.json; on macOS that is under
+// Tauri identifier for E2E builds, overridden in src-tauri/tauri.e2e.conf.json
+// (see package.json `e2e:build`). The e2e overlay uses a distinct `.e2e`
+// identifier so resetting app state never touches a developer's real
+// (production-identifier) app-config dir. The app persists connection profiles
+// to <app_config_dir>/connections.json; on macOS that is under
 // ~/Library/Application Support/<identifier>/.
-const TAURI_IDENTIFIER = "jp.dev.neolocalstack.desktop";
+const TAURI_IDENTIFIER = "jp.dev.neolocalstack.desktop.e2e";
 
 /**
  * `tauri build --debug` output binary. The Cargo package is named "app", so the
