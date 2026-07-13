@@ -55,11 +55,72 @@ where
 mod tests {
     use super::*;
 
+    use aws_smithy_runtime_api::client::result::ConnectorError;
+    use aws_smithy_runtime_api::http::{Response, StatusCode};
+    use aws_smithy_types::body::SdkBody;
+    use aws_smithy_types::error::ErrorMetadata;
+
     #[test]
     fn app_error_serializes_with_kind_and_message() {
         let e = AppError::Connection("refused".into());
         let json = serde_json::to_value(&e).unwrap();
         assert_eq!(json["kind"], "connection");
         assert_eq!(json["message"], "refused");
+    }
+
+    /// Build a `SdkError::ServiceError` carrying an `ErrorMetadata` with the given code/message.
+    fn service_error(code: &str, message: &str) -> SdkError<ErrorMetadata, Response> {
+        let meta = ErrorMetadata::builder().code(code).message(message).build();
+        let raw = Response::new(StatusCode::try_from(400).unwrap(), SdkBody::empty());
+        SdkError::service_error(meta, raw)
+    }
+
+    #[test]
+    fn service_error_resource_not_found_maps_to_not_found() {
+        let err = service_error("ResourceNotFoundException", "no such table");
+        assert_eq!(map_sdk_err(err), AppError::NotFound("no such table".into()));
+    }
+
+    #[test]
+    fn service_error_validation_codes_map_to_validation() {
+        for code in [
+            "ValidationException",
+            "ConditionalCheckFailedException",
+            "ResourceInUseException",
+        ] {
+            let err = service_error(code, "bad request");
+            assert_eq!(
+                map_sdk_err(err),
+                AppError::Validation("bad request".into()),
+                "code {code} should map to Validation"
+            );
+        }
+    }
+
+    #[test]
+    fn service_error_unlisted_code_maps_to_internal() {
+        let err = service_error("InternalServerError", "boom");
+        assert_eq!(
+            map_sdk_err(err),
+            AppError::Internal("InternalServerError: boom".into())
+        );
+    }
+
+    #[test]
+    fn timeout_error_maps_to_connection() {
+        let err: SdkError<ErrorMetadata, Response> =
+            SdkError::timeout_error(Box::<dyn std::error::Error + Send + Sync>::from(
+                "timed out",
+            ));
+        assert!(matches!(map_sdk_err(err), AppError::Connection(_)));
+    }
+
+    #[test]
+    fn dispatch_failure_maps_to_connection() {
+        let err: SdkError<ErrorMetadata, Response> =
+            SdkError::dispatch_failure(ConnectorError::user(Box::<
+                dyn std::error::Error + Send + Sync,
+            >::from("no route")));
+        assert!(matches!(map_sdk_err(err), AppError::Connection(_)));
     }
 }

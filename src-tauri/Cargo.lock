@@ -81,6 +81,7 @@ version = "0.1.0"
 dependencies = [
  "aws-sdk-dynamodb",
  "aws-smithy-runtime-api",
+ "aws-smithy-types",
  "base64 0.22.1",
  "log",
  "serde",
