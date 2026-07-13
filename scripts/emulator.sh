@@ -73,11 +73,24 @@ stop_docker() {
 
 pip_pidfile() { echo "${PID_DIR}/ministack-pip.pid"; }
 pip_logfile() { echo "${PID_DIR}/ministack-pip.log"; }
+pip_venvdir() { echo "${PID_DIR}/ministack-venv"; }
+
+# Resolve the python interpreter inside a venv, handling both the POSIX
+# (`bin/python`) and Windows (`Scripts/python.exe`) layouts.
+venv_python() {
+  local venv="$1"
+  if [[ -x "${venv}/bin/python" ]]; then
+    echo "${venv}/bin/python"
+  else
+    echo "${venv}/Scripts/python.exe"
+  fi
+}
 
 start_pip() {
-  local pidfile logfile PY
+  local pidfile logfile venv PY VPY
   pidfile="$(pip_pidfile)"
   logfile="$(pip_logfile)"
+  venv="$(pip_venvdir)"
 
   if [[ -f "${pidfile}" ]] && kill -0 "$(cat "${pidfile}")" 2>/dev/null; then
     echo "[emulator] ministack-pip already running (pid $(cat "${pidfile}"))"
@@ -92,11 +105,18 @@ start_pip() {
     return 1
   fi
 
+  # Install into a dedicated virtualenv. macOS (Homebrew) and other modern
+  # distros mark the system interpreter as PEP 668 "externally-managed", so a
+  # plain `pip install` aborts; a venv sidesteps that and keeps CI hermetic on
+  # every OS. Creating a venv over an existing one is idempotent.
+  "${PY}" -m venv "${venv}"
+  VPY="$(venv_python "${venv}")"
+
   # Install ministack from PyPI (idempotent).
-  "${PY}" -m pip install --quiet --disable-pip-version-check ministack
+  "${VPY}" -m pip install --quiet --disable-pip-version-check ministack
 
   # ministack listens on 4566 by default.
-  nohup "${PY}" -m ministack >"${logfile}" 2>&1 &
+  nohup "${VPY}" -m ministack >"${logfile}" 2>&1 &
   echo $! >"${pidfile}"
   echo "[emulator] ministack-pip started (pid $(cat "${pidfile}")) on ${ENDPOINT}"
 }

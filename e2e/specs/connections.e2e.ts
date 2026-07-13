@@ -98,14 +98,29 @@ describe("connections", () => {
   // published on a port in the auto-detect candidate list (4566/8000/4567).
   it("R2: detects the running emulator via スキャン and adds it", async () => {
     await gotoConnections();
-    await clickT("scan-connections");
 
     // Detected rows appear; find the exact row for our endpoint (match the
     // endpoint span precisely so we don't grab the outer wrapper / another row).
     const addBtn = $(
       `//div[span[normalize-space()="${E2E_ENDPOINT}"]]//button[@data-testid="detect-add"]`,
     );
-    await addBtn.waitForDisplayed({ timeout: 30000 });
+
+    // Detection is a single-shot port probe (see detect_connections). Under CI
+    // load a heavier emulator (e.g. localstack:3) can occasionally miss the
+    // probe's per-port timeout, yielding an empty result with no auto-retry.
+    // Re-trigger the scan until the endpoint's add button appears rather than
+    // waiting passively on a one-shot that already returned nothing.
+    let addShown = false;
+    for (let attempt = 0; attempt < 5 && !addShown; attempt++) {
+      await clickT("scan-connections");
+      addShown = await addBtn
+        .waitForDisplayed({ timeout: 8000 })
+        .then(() => true)
+        .catch(() => false);
+    }
+    if (!addShown) {
+      throw new Error(`emulator at ${E2E_ENDPOINT} was not detected via スキャン after retries`);
+    }
     await addBtn.click();
 
     // The add form opens pre-filled from the detected endpoint; name it and save.
