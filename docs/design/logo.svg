@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="neo-localstack-desktop logo (IsoStack)">
+  <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#232f3e"/>
+  <!-- bottom layer -->
+  <polygon points="512,570 772,700 512,830 252,700" fill="#5a2fd6"/>
+  <!-- middle layer -->
+  <polygon points="512,410 772,540 512,670 252,540" fill="#7c4dff"/>
+  <!-- top layer -->
+  <polygon points="512,250 772,380 512,510 252,380" fill="#b39dff"/>
+  <!-- local dock notch on top face -->
+  <polygon points="512,330 592,370 512,410 432,370" fill="#232f3e"/>
+</svg>

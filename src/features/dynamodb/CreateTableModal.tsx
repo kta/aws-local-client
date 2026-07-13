@@ -8,11 +8,15 @@ function KeyAttrInputs({
   value,
   onChange,
   optional,
+  testId,
+  typeTestId,
 }: {
   label: string;
   value: KeyAttr | null;
   onChange: (v: KeyAttr | null) => void;
   optional?: boolean;
+  testId?: string;
+  typeTestId?: string;
 }) {
   return (
     <div className="flex items-end gap-2">
@@ -20,6 +24,7 @@ function KeyAttrInputs({
         <span className="text-gray-600">{label}</span>
         <input
           className="mt-1 w-full rounded border border-gray-300 px-2 py-1"
+          data-testid={testId}
           value={value?.name ?? ""}
           placeholder={optional ? "(なし)" : ""}
           onChange={(e) => {
@@ -31,6 +36,7 @@ function KeyAttrInputs({
       </label>
       <select
         className="rounded border border-gray-300 px-2 py-1 text-sm"
+        data-testid={typeTestId}
         value={value?.attrType ?? "S"}
         disabled={!value}
         onChange={(e) => value && onChange({ ...value, attrType: e.target.value as KeyAttr["attrType"] })}
@@ -76,18 +82,33 @@ export function CreateTableModal({
           <span className="text-gray-600">テーブル名</span>
           <input
             className="mt-1 w-full rounded border border-gray-300 px-2 py-1"
+            data-testid="ct-name"
             value={tableName}
             onChange={(e) => setTableName(e.target.value)}
           />
         </label>
-        <KeyAttrInputs label="パーティションキー" value={pk} onChange={setPk} />
-        <KeyAttrInputs label="ソートキー(任意)" value={sk} onChange={setSk} optional />
+        <KeyAttrInputs
+          label="パーティションキー"
+          value={pk}
+          onChange={setPk}
+          testId="ct-pk-name"
+          typeTestId="ct-pk-type"
+        />
+        <KeyAttrInputs
+          label="ソートキー(任意)"
+          value={sk}
+          onChange={setSk}
+          optional
+          testId="ct-sk-name"
+          typeTestId="ct-sk-type"
+        />
 
         <div>
           <div className="mb-1 flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-700">GSI</span>
             <button
               className="text-sm text-blue-600 hover:underline"
+              data-testid="ct-add-gsi"
               onClick={() => setGsis([...gsis, { name: "", pk: { name: "", attrType: "S" }, sk: null }])}
             >
               + GSI を追加
@@ -99,6 +120,7 @@ export function CreateTableModal({
                 <input
                   className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
                   placeholder="インデックス名"
+                  data-testid={`ct-gsi-name-${i}`}
                   value={g.name}
                   onChange={(e) => setGsis(gsis.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
                 />
@@ -113,6 +135,8 @@ export function CreateTableModal({
                 label="GSI パーティションキー"
                 value={g.pk}
                 onChange={(v) => v && setGsis(gsis.map((x, j) => (j === i ? { ...x, pk: v } : x)))}
+                testId={`ct-gsi-pk-name-${i}`}
+                typeTestId={`ct-gsi-pk-type-${i}`}
               />
               <KeyAttrInputs
                 label="GSI ソートキー(任意)"
@@ -131,6 +155,7 @@ export function CreateTableModal({
           <button
             onClick={submit}
             disabled={!valid || submitting}
+            data-testid="ct-submit"
             className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {submitting ? "作成中..." : "作成"}

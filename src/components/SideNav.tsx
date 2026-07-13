@@ -21,10 +21,10 @@ export function SideNav() {
       <span className={SOON} aria-disabled="true">
         ダッシュボード
       </span>
-      <Link to="/dynamodb/tables" className={itemClass(tablesActive)}>
+      <Link to="/dynamodb/tables" data-testid="nav-tables" className={itemClass(tablesActive)}>
         テーブル
       </Link>
-      <Link to="/dynamodb/explore" className={itemClass(exploreActive)}>
+      <Link to="/dynamodb/explore" data-testid="nav-explore" className={itemClass(exploreActive)}>
         項目を探索
       </Link>
       <div className="my-2 h-px bg-[#e9ecef]" />

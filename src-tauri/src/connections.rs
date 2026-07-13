@@ -93,7 +93,10 @@ pub async fn probe(endpoint_url: &str) -> Option<usize> {
     let creds = Credentials::new("dummy", "dummy", None, None, "probe");
     let timeouts = aws_sdk_dynamodb::config::timeout::TimeoutConfig::builder()
         .connect_timeout(Duration::from_millis(700))
-        .operation_timeout(Duration::from_millis(1500))
+        // Heavier emulators (e.g. localstack:3) can take a couple of seconds to
+        // answer the first ListTables under CI load; keep the connect timeout
+        // tight (dead ports fail fast) but give a responsive port room to reply.
+        .operation_timeout(Duration::from_millis(3000))
         .build();
     let config = aws_sdk_dynamodb::Config::builder()
         .behavior_version(BehaviorVersion::latest())

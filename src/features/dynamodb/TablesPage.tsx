@@ -136,18 +136,24 @@ export function TablesPage() {
   return (
     <div className="p-[22px] px-6 pb-[30px]">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-[20px] font-bold">テーブル</h1>
-        <span className="text-[12.5px] text-[#5f6b7a]">({tables.length})</span>
+        <h1 className="text-[20px] font-bold" data-testid="tables-heading">
+          テーブル
+        </h1>
+        <span className="text-[12.5px] text-[#5f6b7a]" data-testid="tables-count">
+          ({tables.length})
+        </span>
         <div className="flex-1" />
         <button
           onClick={deleteSelected}
           disabled={selected.size !== 1}
+          data-testid="tables-delete"
           className="rounded-lg border border-[color-mix(in_srgb,#d13212_45%,#d9dee3)] px-[14px] py-[6px] text-[13px] font-semibold text-[#d13212] hover:border-[#5f6b7a] disabled:cursor-not-allowed disabled:opacity-45"
         >
           削除
         </button>
         <button
           onClick={() => setCreating(true)}
+          data-testid="tables-create"
           className="rounded-lg border border-[#0972d3] bg-[#0972d3] px-[14px] py-[6px] text-[13px] font-semibold text-white hover:bg-[#075bab]"
         >
           テーブルの作成
@@ -194,6 +200,7 @@ export function TablesPage() {
                     <td>
                       <Link
                         to={`/dynamodb/tables/${encodeURIComponent(t)}`}
+                        data-testid={`table-link-${t}`}
                         className="font-semibold text-[#0972d3] no-underline hover:underline"
                       >
                         {t}
