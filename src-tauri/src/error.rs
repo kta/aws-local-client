@@ -26,7 +26,7 @@ impl std::error::Error for AppError {}
 
 pub fn map_sdk_err<E>(err: SdkError<E, Response>) -> AppError
 where
-    E: aws_sdk_dynamodb::error::ProvideErrorMetadata + std::fmt::Debug,
+    E: aws_smithy_types::error::metadata::ProvideErrorMetadata + std::fmt::Debug,
 {
     match &err {
         SdkError::DispatchFailure(_) | SdkError::TimeoutError(_) => {
