@@ -24,9 +24,11 @@ const startInstance = vi.fn();
 const rebootInstance = vi.fn();
 const modifyInstance = vi.fn();
 
+let noProfiles = false;
+
 vi.mock("../../api/client", () => ({
   api: {
-    listConnections: vi.fn(async () => profiles),
+    listConnections: vi.fn(async () => (noProfiles ? [] : profiles)),
     rds: {
       listInstances: (...args: unknown[]) => listInstances(...args),
       createInstance: (...args: unknown[]) => createInstance(...args),
@@ -61,6 +63,10 @@ const renderPage = () =>
       </ConnectionsProvider>
     </MemoryRouter>,
   );
+
+beforeEach(() => {
+  noProfiles = false;
+});
 
 describe("InstancesPage list", () => {
   beforeEach(() => {
@@ -191,5 +197,19 @@ describe("InstancesPage create failure (R35)", () => {
     expect(screen.queryByTestId("rds-unsupported")).not.toBeInTheDocument();
     // The list is still visible alongside the error.
     expect(screen.getByTestId("instance-row-db-1")).toBeInTheDocument();
+  });
+});
+
+describe("InstancesPage without an active connection", () => {
+  beforeEach(() => {
+    noProfiles = true;
+    listInstances.mockReset().mockResolvedValue([instance("db-1")]);
+  });
+
+  it("shows the connection-required prompt and never lists instances", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/接続が未登録です/)).toBeInTheDocument());
+    expect(screen.queryByTestId("instances-heading")).not.toBeInTheDocument();
+    expect(listInstances).not.toHaveBeenCalled();
   });
 });
