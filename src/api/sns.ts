@@ -15,6 +15,28 @@ export interface SnsSubscription {
   rawDelivery: boolean;
 }
 
+export interface TopicAttributes {
+  topicArn: string;
+  displayName: string;
+  owner: string;
+  subscriptionsConfirmed: number;
+  subscriptionsPending: number;
+  fifo: boolean;
+}
+
+export interface GlobalSubscription {
+  subscriptionArn: string;
+  topicArn: string;
+  topicName: string;
+  protocol: string;
+  endpoint: string;
+}
+
+export interface TopicTag {
+  key: string;
+  value: string;
+}
+
 export interface PublishRequest {
   message: string;
   subject?: string;
@@ -42,4 +64,16 @@ export const sns = {
     invoke<void>("sns_unsubscribe", { profile, subscriptionArn }),
   publish: (profile: ConnectionProfile, topicArn: string, req: PublishRequest) =>
     invoke<string>("sns_publish", { profile, topicArn, req }),
+  getTopicAttributes: (profile: ConnectionProfile, topicArn: string) =>
+    invoke<TopicAttributes>("sns_get_topic_attributes", { profile, topicArn }),
+  setDisplayName: (profile: ConnectionProfile, topicArn: string, displayName: string) =>
+    invoke<void>("sns_set_display_name", { profile, topicArn, displayName }),
+  listAllSubscriptions: (profile: ConnectionProfile) =>
+    invoke<GlobalSubscription[]>("sns_list_all_subscriptions", { profile }),
+  listTopicTags: (profile: ConnectionProfile, topicArn: string) =>
+    invoke<TopicTag[]>("sns_list_topic_tags", { profile, topicArn }),
+  tagTopic: (profile: ConnectionProfile, topicArn: string, key: string, value: string) =>
+    invoke<void>("sns_tag_topic", { profile, topicArn, key, value }),
+  untagTopic: (profile: ConnectionProfile, topicArn: string, key: string) =>
+    invoke<void>("sns_untag_topic", { profile, topicArn, key }),
 };

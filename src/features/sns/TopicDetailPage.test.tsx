@@ -61,6 +61,11 @@ vi.mock("../../api/client", () => ({
       subscribeSqs: (...args: unknown[]) => subscribeSqs(...args),
       unsubscribe: (...args: unknown[]) => unsubscribe(...args),
       publish: (...args: unknown[]) => publish(...args),
+      getTopicAttributes: (...args: unknown[]) => getTopicAttributes(...args),
+      setDisplayName: (...args: unknown[]) => setDisplayName(...args),
+      listTopicTags: (...args: unknown[]) => listTopicTags(...args),
+      tagTopic: (...args: unknown[]) => tagTopic(...args),
+      untagTopic: (...args: unknown[]) => untagTopic(...args),
     },
     sqs: {
       listQueues: (...args: unknown[]) => listQueues(...args),
@@ -80,6 +85,11 @@ const unsubscribe = vi.fn();
 const publish = vi.fn();
 const listQueues = vi.fn();
 const getQueue = vi.fn();
+const getTopicAttributes = vi.fn();
+const setDisplayName = vi.fn();
+const listTopicTags = vi.fn();
+const tagTopic = vi.fn();
+const untagTopic = vi.fn();
 
 import { ConnectionsProvider } from "../../state/connections";
 import { TopicDetailPage } from "./TopicDetailPage";
@@ -104,6 +114,18 @@ beforeEach(() => {
   publish.mockReset().mockResolvedValue("msg-123");
   listQueues.mockReset().mockResolvedValue([queueSummary]);
   getQueue.mockReset().mockResolvedValue(queueDetail);
+  getTopicAttributes.mockReset().mockResolvedValue({
+    topicArn: topic.topicArn,
+    displayName: "Orders",
+    owner: "000000000000",
+    subscriptionsConfirmed: 2,
+    subscriptionsPending: 0,
+    fifo: false,
+  });
+  setDisplayName.mockReset().mockResolvedValue(undefined);
+  listTopicTags.mockReset().mockResolvedValue([{ key: "env", value: "prod" }]);
+  tagTopic.mockReset().mockResolvedValue(undefined);
+  untagTopic.mockReset().mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -209,5 +231,64 @@ describe("TopicDetailPage", () => {
     fireEvent.click(await screen.findByTestId("tab-publish"));
     expect(await screen.findByTestId("pub-group-id")).toBeInTheDocument();
     expect(screen.getByTestId("pub-dedup-id")).toBeInTheDocument();
+  });
+
+  it("shows attributes and saves an edited display name", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-attrs"));
+
+    const input = await screen.findByTestId("attr-display-name");
+    await waitFor(() => expect(input).toHaveValue("Orders"));
+    expect(screen.getByTestId("attrs-table")).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "New Orders" } });
+    fireEvent.click(screen.getByTestId("attr-save"));
+
+    await waitFor(() =>
+      expect(setDisplayName).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "1" }),
+        topic.topicArn,
+        "New Orders",
+      ),
+    );
+    // Re-fetches attributes after saving.
+    await waitFor(() => expect(getTopicAttributes).toHaveBeenCalledTimes(2));
+  });
+
+  it("lists tags and adds a new one", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-tags"));
+
+    expect(await screen.findByTestId("tags-table")).toBeInTheDocument();
+    expect(screen.getByTestId("tag-remove-env")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("tag-add"));
+    fireEvent.change(await screen.findByTestId("tag-key-input"), { target: { value: "team" } });
+    fireEvent.change(screen.getByTestId("tag-value-input"), { target: { value: "core" } });
+    fireEvent.click(screen.getByTestId("tag-save"));
+
+    await waitFor(() =>
+      expect(tagTopic).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "1" }),
+        topic.topicArn,
+        "team",
+        "core",
+      ),
+    );
+    await waitFor(() => expect(listTopicTags).toHaveBeenCalledTimes(2));
+  });
+
+  it("removes a tag", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-tags"));
+    fireEvent.click(await screen.findByTestId("tag-remove-env"));
+
+    await waitFor(() =>
+      expect(untagTopic).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "1" }),
+        topic.topicArn,
+        "env",
+      ),
+    );
   });
 });

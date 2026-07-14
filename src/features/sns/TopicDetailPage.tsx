@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, toAppError } from "../../api/client";
-import type { PublishRequest, SnsSubscription, TopicSummary } from "../../api/sns";
+import type {
+  PublishRequest,
+  SnsSubscription,
+  TopicAttributes,
+  TopicSummary,
+  TopicTag,
+} from "../../api/sns";
 import type { QueueSummary } from "../../api/sqs";
 import type { AppError, ConnectionProfile } from "../../api/types";
 import { ErrorBanner } from "../../components/ErrorBanner";
@@ -16,7 +22,7 @@ import {
 import { useProfileScopedFetch } from "../../lib/useProfileScopedFetch";
 import { useConnections } from "../../state/connections";
 
-type Tab = "subs" | "publish";
+type Tab = "subs" | "publish" | "attrs" | "tags";
 
 const FIELD = "mt-1 w-full rounded border border-gray-300 px-2 py-1";
 const LABEL = "block text-sm";
@@ -85,6 +91,24 @@ export function TopicDetailPage() {
           >
             メッセージの発行
           </button>
+          <button
+            onClick={() => setTab("attrs")}
+            data-testid="tab-attrs"
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-[9px] text-[13.5px] font-semibold ${
+              tab === "attrs" ? "border-[#0972d3] text-[#0972d3]" : "border-transparent text-[#5f6b7a]"
+            }`}
+          >
+            属性
+          </button>
+          <button
+            onClick={() => setTab("tags")}
+            data-testid="tab-tags"
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-[9px] text-[13.5px] font-semibold ${
+              tab === "tags" ? "border-[#0972d3] text-[#0972d3]" : "border-transparent text-[#5f6b7a]"
+            }`}
+          >
+            タグ
+          </button>
         </div>
 
         {tab === "subs" && topic && active && (
@@ -94,6 +118,12 @@ export function TopicDetailPage() {
         {tab === "publish" && topic && active && (
           <PublishTab topic={topic} profile={active} />
         )}
+
+        {tab === "attrs" && topic && active && (
+          <AttributesTab topic={topic} profile={active} />
+        )}
+
+        {tab === "tags" && topic && active && <TagsTab topic={topic} profile={active} />}
       </div>
     </ConnectionRequired>
   );
@@ -510,5 +540,233 @@ function PublishTab({
         </div>
       </div>
     </Card>
+  );
+}
+
+function AttributesTab({
+  topic,
+  profile,
+}: {
+  topic: TopicSummary;
+  profile: ConnectionProfile;
+}) {
+  const { data, error, reload } = useProfileScopedFetch<TopicAttributes>(
+    (p) => api.sns.getTopicAttributes(p, topic.topicArn),
+    [topic.topicArn],
+  );
+  const [displayName, setDisplayName] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<AppError | null>(null);
+
+  // Seed the editable field from the fetched attributes (until the user edits).
+  useEffect(() => {
+    if (data && !dirty) setDisplayName(data.displayName);
+  }, [data, dirty]);
+
+  const save = async () => {
+    setSaving(true);
+    setActionError(null);
+    try {
+      await api.sns.setDisplayName(profile, topic.topicArn, displayName);
+      setDirty(false);
+      await reload();
+    } catch (e) {
+      setActionError(toAppError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const rows: { label: string; value: string }[] = data
+    ? [
+        { label: "TopicArn", value: data.topicArn },
+        { label: "Owner", value: data.owner },
+        { label: "SubscriptionsConfirmed", value: String(data.subscriptionsConfirmed) },
+        { label: "SubscriptionsPending", value: String(data.subscriptionsPending) },
+        { label: "種別", value: data.fifo ? "FIFO" : "Standard" },
+      ]
+    : [];
+
+  return (
+    <div>
+      <ErrorBanner error={actionError ?? error} onRetry={reload} />
+
+      <Card title="属性" overflowHidden>
+        <div className="space-y-3 p-4">
+          <label className={LABEL}>
+            <span className={LABEL_TEXT}>表示名 (DisplayName)</span>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                className={FIELD}
+                data-testid="attr-display-name"
+                value={displayName}
+                onChange={(e) => {
+                  setDisplayName(e.target.value);
+                  setDirty(true);
+                }}
+              />
+              <Button
+                variant="primary"
+                onClick={save}
+                disabled={saving}
+                data-testid="attr-save"
+              >
+                {saving ? "保存中..." : "保存"}
+              </Button>
+            </div>
+          </label>
+
+          <table
+            data-testid="attrs-table"
+            className="w-full border-collapse [font-variant-numeric:tabular-nums]"
+          >
+            <tbody>
+              {rows.map((r) => (
+                <tr
+                  key={r.label}
+                  className="[&>td]:border-b [&>td]:border-[#e9ecef] [&>td]:px-[14px] [&>td]:py-[9px]"
+                >
+                  <td className="w-[220px] text-[12.5px] font-semibold text-[#5f6b7a]">{r.label}</td>
+                  <td className="break-all font-mono text-xs">{r.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function TagsTab({
+  topic,
+  profile,
+}: {
+  topic: TopicSummary;
+  profile: ConnectionProfile;
+}) {
+  const { data, error, reload } = useProfileScopedFetch<TopicTag[]>(
+    (p) => api.sns.listTopicTags(p, topic.topicArn),
+    [topic.topicArn],
+  );
+  const tags = data ?? [];
+  const [adding, setAdding] = useState(false);
+  const [key, setKey] = useState("");
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState<AppError | null>(null);
+
+  const save = async () => {
+    if (!key.trim()) return;
+    setSaving(true);
+    setActionError(null);
+    try {
+      await api.sns.tagTopic(profile, topic.topicArn, key.trim(), value);
+      setAdding(false);
+      setKey("");
+      setValue("");
+      await reload();
+    } catch (e) {
+      setActionError(toAppError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (tagKey: string) => {
+    setActionError(null);
+    try {
+      await api.sns.untagTopic(profile, topic.topicArn, tagKey);
+      await reload();
+    } catch (e) {
+      setActionError(toAppError(e));
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <Button variant="primary" onClick={() => setAdding(true)} data-testid="tag-add">
+          タグの追加
+        </Button>
+      </div>
+
+      <ErrorBanner error={actionError ?? error} onRetry={reload} />
+
+      <Card className="overflow-x-auto">
+        <table
+          data-testid="tags-table"
+          className="w-full border-collapse [font-variant-numeric:tabular-nums]"
+        >
+          <thead>
+            <tr className="[&>th]:border-b [&>th]:border-[#d9dee3] [&>th]:bg-[color-mix(in_srgb,#fff_60%,#f0f1f3)] [&>th]:px-[14px] [&>th]:py-[9px] [&>th]:text-left [&>th]:text-[12px] [&>th]:font-semibold [&>th]:text-[#5f6b7a]">
+              <th>キー</th>
+              <th>値</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {tags.length === 0 && !adding && (
+              <tr>
+                <td colSpan={3} className="p-6 text-center text-[#5f6b7a]">
+                  タグがありません
+                </td>
+              </tr>
+            )}
+            {tags.map((t) => (
+              <tr
+                key={t.key}
+                className="[&>td]:border-b [&>td]:border-[#e9ecef] [&>td]:px-[14px] [&>td]:py-[9px]"
+              >
+                <td className="font-mono text-xs font-semibold">{t.key}</td>
+                <td className="font-mono text-xs">{t.value}</td>
+                <td>
+                  <button
+                    onClick={() => remove(t.key)}
+                    data-testid={`tag-remove-${t.key}`}
+                    className="rounded-lg border border-[color-mix(in_srgb,#d13212_45%,#d9dee3)] px-[12px] py-[4px] text-[12.5px] font-semibold text-[#d13212] hover:border-[#5f6b7a]"
+                  >
+                    削除
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {adding && (
+              <tr className="[&>td]:border-b [&>td]:border-[#e9ecef] [&>td]:px-[14px] [&>td]:py-[9px]">
+                <td>
+                  <input
+                    className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                    placeholder="キー"
+                    data-testid="tag-key-input"
+                    value={key}
+                    onChange={(e) => setKey(e.target.value)}
+                  />
+                </td>
+                <td>
+                  <input
+                    className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+                    placeholder="値"
+                    data-testid="tag-value-input"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                  />
+                </td>
+                <td className="whitespace-nowrap">
+                  <Button
+                    variant="primary"
+                    onClick={save}
+                    disabled={saving || !key.trim()}
+                    data-testid="tag-save"
+                  >
+                    {saving ? "保存中..." : "保存"}
+                  </Button>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </Card>
+    </div>
   );
 }
