@@ -83,6 +83,9 @@ pub fn run() {
             commands::s3::s3_put_object,
             commands::s3::s3_download_object,
             commands::s3::s3_delete_object,
+            commands::rds::rds_list_instances,
+            commands::rds::rds_create_instance,
+            commands::rds::rds_delete_instance,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
