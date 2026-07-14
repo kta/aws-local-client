@@ -167,3 +167,143 @@ async fn topic_subscribe_publish_delivers_to_sqs() {
     delete_topic(&sns, &topic.topic_arn).await.unwrap();
     sqs::delete_queue(&sqs_c, &queue.queue_url).await.unwrap();
 }
+
+/// R41: GetTopicAttributes / SetTopicAttributes(DisplayName)round-trip.
+#[tokio::test]
+#[ignore]
+async fn topic_attributes_display_name_round_trip() {
+    let sns = sns_client();
+    let topic_name = "x2_sns_attrs_topic";
+
+    if let Ok(topics) = list_topics(&sns).await {
+        if let Some(t) = topics.iter().find(|t| t.name == topic_name) {
+            let _ = delete_topic(&sns, &t.topic_arn).await;
+        }
+    }
+
+    create_topic(&sns, topic_name, false).await.unwrap();
+    let topic = list_topics(&sns)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|t| t.name == topic_name)
+        .expect("created topic should be listed");
+
+    let attrs = get_topic_attributes(&sns, &topic.topic_arn).await.unwrap();
+    assert_eq!(attrs.topic_arn, topic.topic_arn);
+    assert!(!attrs.fifo);
+    assert!(!attrs.owner.is_empty(), "owner should be populated");
+
+    set_display_name(&sns, &topic.topic_arn, "X2 Display")
+        .await
+        .unwrap();
+    let after = get_topic_attributes(&sns, &topic.topic_arn).await.unwrap();
+    assert_eq!(after.display_name, "X2 Display");
+
+    delete_topic(&sns, &topic.topic_arn).await.unwrap();
+}
+
+/// R40: ListSubscriptions(cross-topic)includes a topic's subscription with its
+/// resolved topic name.
+#[tokio::test]
+#[ignore]
+async fn list_all_subscriptions_spans_topics() {
+    let sns = sns_client();
+    let sqs_c = sqs_client();
+    let topic_name = "x2_sns_all_subs_topic";
+    let queue_name = "x2_sns_all_subs_queue";
+
+    if let Ok(topics) = list_topics(&sns).await {
+        if let Some(t) = topics.iter().find(|t| t.name == topic_name) {
+            let _ = delete_topic(&sns, &t.topic_arn).await;
+        }
+    }
+    if let Ok(queues) = sqs::list_queues(&sqs_c).await {
+        if let Some(q) = queues.iter().find(|q| q.name == queue_name) {
+            let _ = sqs::delete_queue(&sqs_c, &q.queue_url).await;
+        }
+    }
+
+    create_topic(&sns, topic_name, false).await.unwrap();
+    let topic = list_topics(&sns)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|t| t.name == topic_name)
+        .expect("created topic should be listed");
+    sqs::create_queue(
+        &sqs_c,
+        &sqs::CreateQueueRequest {
+            name: queue_name.into(),
+            fifo: false,
+            visibility_timeout: Some(30),
+            retention_period: Some(345600),
+            delay_seconds: Some(0),
+            redrive_policy: None,
+        },
+    )
+    .await
+    .unwrap();
+    let queue = sqs::list_queues(&sqs_c)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|q| q.name == queue_name)
+        .expect("created queue should be listed");
+    let queue_arn = sqs::get_queue(&sqs_c, &queue.queue_url).await.unwrap().arn;
+    subscribe_sqs(&sns, &topic.topic_arn, &queue_arn, None, false)
+        .await
+        .unwrap();
+
+    let all = list_all_subscriptions(&sns).await.unwrap();
+    let found = all
+        .iter()
+        .find(|s| s.topic_arn == topic.topic_arn && s.endpoint == queue_arn)
+        .expect("cross-topic listing should include the new subscription");
+    assert_eq!(found.topic_name, topic_name);
+    assert_eq!(found.protocol, "sqs");
+
+    delete_topic(&sns, &topic.topic_arn).await.unwrap();
+    sqs::delete_queue(&sqs_c, &queue.queue_url).await.unwrap();
+}
+
+/// R42: TagResource / ListTagsForResource / UntagResource round-trip
+/// (tag_topic embeds the floci recovery; on ministack the happy path applies).
+#[tokio::test]
+#[ignore]
+async fn topic_tags_round_trip() {
+    let sns = sns_client();
+    let topic_name = "x2_sns_tags_topic";
+
+    if let Ok(topics) = list_topics(&sns).await {
+        if let Some(t) = topics.iter().find(|t| t.name == topic_name) {
+            let _ = delete_topic(&sns, &t.topic_arn).await;
+        }
+    }
+
+    create_topic(&sns, topic_name, false).await.unwrap();
+    let topic = list_topics(&sns)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|t| t.name == topic_name)
+        .expect("created topic should be listed");
+
+    tag_topic(&sns, &topic.topic_arn, "env", "x2-test")
+        .await
+        .unwrap();
+    let tags = list_topic_tags(&sns, &topic.topic_arn).await.unwrap();
+    assert!(
+        tags.iter().any(|t| t.key == "env" && t.value == "x2-test"),
+        "tag should be listed after tag_topic"
+    );
+
+    untag_topic(&sns, &topic.topic_arn, "env").await.unwrap();
+    let after = list_topic_tags(&sns, &topic.topic_arn).await.unwrap();
+    assert!(
+        !after.iter().any(|t| t.key == "env"),
+        "tag should be gone after untag_topic"
+    );
+
+    delete_topic(&sns, &topic.topic_arn).await.unwrap();
+}
