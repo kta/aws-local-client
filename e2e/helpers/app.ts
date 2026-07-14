@@ -184,6 +184,26 @@ export async function gotoExplore(table?: string): Promise<void> {
   await waitDisplayed(T("explore-table-select"));
 }
 
+export async function gotoDashboard(): Promise<void> {
+  await navigateHash("#/dynamodb");
+  await waitDisplayed(T("dashboard-heading"));
+}
+
+export async function gotoPartiql(): Promise<void> {
+  await navigateHash("#/dynamodb/partiql");
+  await waitDisplayed(T("partiql-statement"));
+}
+
+export async function gotoBackups(): Promise<void> {
+  await navigateHash("#/dynamodb/backups");
+  await waitDisplayed(T("backups-heading"));
+}
+
+/** Count DOM nodes matching a data-testid (avoids webkit stale-element flakiness). */
+export async function countByTestId(id: string): Promise<number> {
+  return browser.execute((sel: string) => document.querySelectorAll(sel).length, T(id));
+}
+
 // --- connections -------------------------------------------------------------
 
 export type RegisterOpts = {
