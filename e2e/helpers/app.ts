@@ -38,6 +38,21 @@ export async function setValueT(id: string, value: string, timeout = 20000) {
  */
 export async function setSelectValue(id: string, value: string): Promise<void> {
   await waitDisplayed(T(id));
+  // Options may be populated asynchronously (e.g. from listTables); setting a
+  // value before its <option> exists silently leaves the select empty on slow
+  // runners, so wait for the target option to appear first.
+  await browser.waitUntil(
+    async () =>
+      browser.execute(
+        (sel: string, val: string) => {
+          const el = document.querySelector(sel) as HTMLSelectElement | null;
+          return !!el && [...el.options].some((o) => o.value === val);
+        },
+        T(id),
+        value,
+      ),
+    { timeout: 20000, timeoutMsg: `option "${value}" never appeared in ${id}` },
+  );
   await browser.execute(
     (sel: string, val: string) => {
       const el = document.querySelector(sel) as HTMLSelectElement | null;
@@ -57,6 +72,18 @@ export async function setSelectValue(id: string, value: string): Promise<void> {
 /** Like setSelectValue but selects the option whose visible text matches. */
 export async function setSelectByVisibleText(id: string, text: string): Promise<void> {
   await waitDisplayed(T(id));
+  await browser.waitUntil(
+    async () =>
+      browser.execute(
+        (sel: string, txt: string) => {
+          const el = document.querySelector(sel) as HTMLSelectElement | null;
+          return !!el && [...el.options].some((o) => (o.textContent ?? "").trim() === txt);
+        },
+        T(id),
+        text,
+      ),
+    { timeout: 20000, timeoutMsg: `option "${text}" never appeared in ${id}` },
+  );
   await browser.execute(
     (sel: string, txt: string) => {
       const el = document.querySelector(sel) as HTMLSelectElement | null;
@@ -182,6 +209,26 @@ export async function gotoTables(): Promise<void> {
 export async function gotoExplore(table?: string): Promise<void> {
   await navigateHash(table ? `#/dynamodb/explore?table=${encodeURIComponent(table)}` : "#/dynamodb/explore");
   await waitDisplayed(T("explore-table-select"));
+}
+
+export async function gotoDashboard(): Promise<void> {
+  await navigateHash("#/dynamodb");
+  await waitDisplayed(T("dashboard-heading"));
+}
+
+export async function gotoPartiql(): Promise<void> {
+  await navigateHash("#/dynamodb/partiql");
+  await waitDisplayed(T("partiql-statement"));
+}
+
+export async function gotoBackups(): Promise<void> {
+  await navigateHash("#/dynamodb/backups");
+  await waitDisplayed(T("backups-heading"));
+}
+
+/** Count DOM nodes matching a data-testid (avoids webkit stale-element flakiness). */
+export async function countByTestId(id: string): Promise<number> {
+  return browser.execute((sel: string) => document.querySelectorAll(sel).length, T(id));
 }
 
 // --- connections -------------------------------------------------------------

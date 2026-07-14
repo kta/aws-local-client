@@ -83,6 +83,25 @@ pub struct PageResult {
     pub scanned_count: i32,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PartiqlResult {
+    pub items: Vec<Value>,
+    pub next_token: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupSummary {
+    pub backup_arn: String,
+    pub backup_name: String,
+    pub table_name: String,
+    pub status: String,
+    pub size_bytes: Option<i64>,
+    /// RFC3339 timestamp of when the backup was created.
+    pub created_at: Option<String>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyAttr {
@@ -360,6 +379,89 @@ pub async fn delete_table(client: &Client, name: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+pub async fn execute_statement(
+    client: &Client,
+    statement: &str,
+    next_token: Option<String>,
+) -> Result<PartiqlResult, AppError> {
+    let out = client
+        .execute_statement()
+        .statement(statement)
+        .set_next_token(next_token)
+        .send()
+        .await
+        .map_err(map_sdk_err)?;
+    // Non-SELECT statements simply return no items; that is passed through as an
+    // empty list. The wire format is always DynamoDB JSON.
+    Ok(PartiqlResult {
+        items: out.items().iter().map(item_to_json).collect(),
+        next_token: out.next_token().map(String::from),
+    })
+}
+
+pub async fn list_backups(client: &Client) -> Result<Vec<BackupSummary>, AppError> {
+    use aws_sdk_dynamodb::primitives::DateTimeFormat;
+    let out = client.list_backups().send().await.map_err(map_sdk_err)?;
+    let summaries = out
+        .backup_summaries()
+        .iter()
+        .map(|b| BackupSummary {
+            backup_arn: b.backup_arn().unwrap_or_default().to_string(),
+            backup_name: b.backup_name().unwrap_or_default().to_string(),
+            table_name: b.table_name().unwrap_or_default().to_string(),
+            status: b
+                .backup_status()
+                .map(|s| s.as_str().to_string())
+                .unwrap_or_default(),
+            size_bytes: b.backup_size_bytes(),
+            created_at: b
+                .backup_creation_date_time()
+                .and_then(|dt| dt.fmt(DateTimeFormat::DateTime).ok()),
+        })
+        .collect();
+    Ok(summaries)
+}
+
+pub async fn create_backup(
+    client: &Client,
+    table_name: &str,
+    backup_name: &str,
+) -> Result<(), AppError> {
+    client
+        .create_backup()
+        .table_name(table_name)
+        .backup_name(backup_name)
+        .send()
+        .await
+        .map_err(map_sdk_err)?;
+    Ok(())
+}
+
+pub async fn delete_backup(client: &Client, backup_arn: &str) -> Result<(), AppError> {
+    client
+        .delete_backup()
+        .backup_arn(backup_arn)
+        .send()
+        .await
+        .map_err(map_sdk_err)?;
+    Ok(())
+}
+
+pub async fn restore_backup(
+    client: &Client,
+    backup_arn: &str,
+    target_table_name: &str,
+) -> Result<(), AppError> {
+    client
+        .restore_table_from_backup()
+        .backup_arn(backup_arn)
+        .target_table_name(target_table_name)
+        .send()
+        .await
+        .map_err(map_sdk_err)?;
+    Ok(())
+}
+
 // ---- Tauri commands ----
 
 #[tauri::command(rename_all = "camelCase")]
@@ -423,4 +525,91 @@ pub async fn ddb_delete_table(
     table_name: String,
 ) -> Result<(), AppError> {
     delete_table(&make_client(&profile), &table_name).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn ddb_execute_statement(
+    profile: ConnectionProfile,
+    statement: String,
+    next_token: Option<String>,
+) -> Result<PartiqlResult, AppError> {
+    execute_statement(&make_client(&profile), &statement, next_token).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn ddb_list_backups(profile: ConnectionProfile) -> Result<Vec<BackupSummary>, AppError> {
+    list_backups(&make_client(&profile)).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn ddb_create_backup(
+    profile: ConnectionProfile,
+    table_name: String,
+    backup_name: String,
+) -> Result<(), AppError> {
+    create_backup(&make_client(&profile), &table_name, &backup_name).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn ddb_delete_backup(
+    profile: ConnectionProfile,
+    backup_arn: String,
+) -> Result<(), AppError> {
+    delete_backup(&make_client(&profile), &backup_arn).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn ddb_restore_backup(
+    profile: ConnectionProfile,
+    backup_arn: String,
+    target_table_name: String,
+) -> Result<(), AppError> {
+    restore_backup(&make_client(&profile), &backup_arn, &target_table_name).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn partiql_result_serializes_camel_case() {
+        let r = PartiqlResult {
+            items: vec![json!({"pk": {"S": "a"}})],
+            next_token: Some("tok".into()),
+        };
+        let v = serde_json::to_value(&r).unwrap();
+        assert_eq!(v["items"][0]["pk"]["S"], "a");
+        assert_eq!(v["nextToken"], "tok");
+    }
+
+    #[test]
+    fn partiql_result_omits_next_token_when_none() {
+        let r = PartiqlResult {
+            items: vec![],
+            next_token: None,
+        };
+        let v = serde_json::to_value(&r).unwrap();
+        assert!(v["items"].as_array().unwrap().is_empty());
+        assert_eq!(v["nextToken"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn backup_summary_serializes_camel_case() {
+        let b = BackupSummary {
+            backup_arn: "arn:aws:dynamodb:...:backup/x".into(),
+            backup_name: "nightly".into(),
+            table_name: "users".into(),
+            status: "AVAILABLE".into(),
+            size_bytes: Some(1024),
+            created_at: Some("2026-07-14T00:00:00Z".into()),
+        };
+        let v = serde_json::to_value(&b).unwrap();
+        assert_eq!(v["backupArn"], "arn:aws:dynamodb:...:backup/x");
+        assert_eq!(v["backupName"], "nightly");
+        assert_eq!(v["tableName"], "users");
+        assert_eq!(v["status"], "AVAILABLE");
+        assert_eq!(v["sizeBytes"], 1024);
+        assert_eq!(v["createdAt"], "2026-07-14T00:00:00Z");
+    }
 }

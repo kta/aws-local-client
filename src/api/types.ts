@@ -48,6 +48,11 @@ export type PageResult = {
   scannedCount: number;
 };
 
+export interface PartiqlResult {
+  items: DdbItem[];
+  nextToken?: string;
+}
+
 export type KeyAttr = { name: string; attrType: "S" | "N" | "B" };
 export type GsiSpec = { name: string; pk: KeyAttr; sk?: KeyAttr | null };
 export type CreateTableRequest = {
@@ -56,5 +61,14 @@ export type CreateTableRequest = {
   sk?: KeyAttr | null;
   gsis: GsiSpec[];
 };
+
+export interface BackupSummary {
+  backupArn: string;
+  backupName: string;
+  tableName: string;
+  status: string;
+  sizeBytes?: number;
+  createdAt?: string; // RFC3339
+}
 
 export type AppError = { kind: string; message: string };

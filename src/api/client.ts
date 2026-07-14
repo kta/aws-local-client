@@ -2,10 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import type { DdbItem } from "../lib/ddbJson";
 import type {
   AppError,
+  BackupSummary,
   ConnectionProfile,
   CreateTableRequest,
   DetectedEndpoint,
   PageResult,
+  PartiqlResult,
   QueryRequest,
   ScanRequest,
   TableDetail,
@@ -43,5 +45,15 @@ export const api = {
       invoke<void>("ddb_create_table", { profile, req }),
     deleteTable: (profile: ConnectionProfile, tableName: string) =>
       invoke<void>("ddb_delete_table", { profile, tableName }),
+    executeStatement: (profile: ConnectionProfile, statement: string, nextToken?: string) =>
+      invoke<PartiqlResult>("ddb_execute_statement", { profile, statement, nextToken }),
+    listBackups: (profile: ConnectionProfile) =>
+      invoke<BackupSummary[]>("ddb_list_backups", { profile }),
+    createBackup: (profile: ConnectionProfile, tableName: string, backupName: string) =>
+      invoke<void>("ddb_create_backup", { profile, tableName, backupName }),
+    deleteBackup: (profile: ConnectionProfile, backupArn: string) =>
+      invoke<void>("ddb_delete_backup", { profile, backupArn }),
+    restoreBackup: (profile: ConnectionProfile, backupArn: string, targetTableName: string) =>
+      invoke<void>("ddb_restore_backup", { profile, backupArn, targetTableName }),
   },
 };
