@@ -4,18 +4,17 @@ import { sqsService } from "../features/sqs/service";
 import { snsService } from "../features/sns/service";
 import { s3Service } from "../features/s3/service";
 import { rdsService } from "../features/rds/service";
-import ec2Icon from "../assets/aws/icon-ec2.svg";
-import eksIcon from "../assets/aws/icon-eks.svg";
+import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
 // grayed-out "coming soon" cards on Home and expose no nav/routes. Replacing one
 // with a real ServiceDefinition (e.g. sqsService) is the only edit needed here.
-// Icons are optional: entries without one render an abbreviation tile on Home.
-const comingSoon = (id: string, name: string, icon?: string): ServiceDefinition => ({
+// Icons are filled in from SERVICE_ICONS below; ids with no icon there render an
+// abbreviation tile on Home.
+const comingSoon = (id: string, name: string): ServiceDefinition => ({
   id,
   name,
   description: "coming soon",
-  icon,
   basePath: `/${id}`,
   enabled: false,
   home: "",
@@ -88,10 +87,13 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["billing", "Billing and Cost Management"],
 ];
 
-const COMING_SOON_ICONS: Record<string, string> = {
-  ec2: ec2Icon,
-  eks: eksIcon,
-};
+// Assign the official AWS Architecture Icon (SERVICE_ICONS) to every service by
+// id, overriding any bespoke icon carried by an implemented service definition.
+// Services with no mapping keep `icon` undefined and render an abbreviation tile.
+const withOfficialIcon = (s: ServiceDefinition): ServiceDefinition => ({
+  ...s,
+  icon: SERVICE_ICONS[s.id] ?? s.icon,
+});
 
 export const SERVICES: ServiceDefinition[] = [
   dynamodbService,
@@ -99,8 +101,8 @@ export const SERVICES: ServiceDefinition[] = [
   snsService,
   s3Service,
   rdsService,
-  ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name, COMING_SOON_ICONS[id])),
-];
+  ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
+].map(withOfficialIcon);
 
 export const serviceForPath = (pathname: string): ServiceDefinition | undefined =>
   SERVICES.find((s) => s.enabled && pathname.startsWith(s.basePath));
