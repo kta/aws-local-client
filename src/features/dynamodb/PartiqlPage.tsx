@@ -38,28 +38,48 @@ export function PartiqlPage() {
 
   const [tables, setTables] = useState<string[]>([]);
   const [statement, setStatement] = useState("");
+  // The statement actually executed by the last run; loadMore must reuse this
+  // (not the live textarea value) so its nextToken stays paired with its query.
+  const [executedStatement, setExecutedStatement] = useState("");
   const [items, setItems] = useState<DdbItem[]>([]);
   const [nextToken, setNextToken] = useState<string | undefined>(undefined);
   const [hasRun, setHasRun] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
+  // Which operation produced the current error, so retry can redo the right thing.
+  const [errorSource, setErrorSource] = useState<"tables" | "run" | null>(null);
   const [running, setRunning] = useState(false);
+
+  const loadTables = useCallback(async () => {
+    if (!active) return;
+    try {
+      setTables(await api.ddb.listTables(active));
+    } catch (e) {
+      setError(toAppError(e));
+      setErrorSource("tables");
+    }
+  }, [active]);
 
   // Load table list for the template helper.
   useEffect(() => {
-    if (!active) return;
-    void (async () => {
-      try {
-        setTables(await api.ddb.listTables(active));
-      } catch (e) {
-        setError(toAppError(e));
-      }
-    })();
+    void loadTables();
+  }, [loadTables]);
+
+  // Clear stale results/errors when the active connection changes; keep the
+  // statement text (user input).
+  useEffect(() => {
+    setItems([]);
+    setNextToken(undefined);
+    setExecutedStatement("");
+    setHasRun(false);
+    setError(null);
+    setErrorSource(null);
   }, [active]);
 
   const run = useCallback(async () => {
     if (!active || !statement.trim()) return;
     setRunning(true);
     setError(null);
+    setErrorSource(null);
     // New run clears previous results.
     setItems([]);
     setNextToken(undefined);
@@ -68,9 +88,11 @@ export function PartiqlPage() {
       const res = await api.ddb.executeStatement(active, statement);
       setItems(res.items);
       setNextToken(res.nextToken);
+      setExecutedStatement(statement);
       setHasRun(true);
     } catch (e) {
       setError(toAppError(e));
+      setErrorSource("run");
     } finally {
       setRunning(false);
     }
@@ -80,16 +102,29 @@ export function PartiqlPage() {
     if (!active || !nextToken) return;
     setRunning(true);
     setError(null);
+    setErrorSource(null);
     try {
-      const res = await api.ddb.executeStatement(active, statement, nextToken);
+      const res = await api.ddb.executeStatement(active, executedStatement, nextToken);
       setItems((prev) => [...prev, ...res.items]);
       setNextToken(res.nextToken);
     } catch (e) {
       setError(toAppError(e));
+      setErrorSource("run");
     } finally {
       setRunning(false);
     }
-  }, [active, statement, nextToken]);
+  }, [active, executedStatement, nextToken]);
+
+  // Retry redoes whatever failed: a table-list load or a statement run.
+  const retry = useCallback(() => {
+    if (errorSource === "tables") {
+      setError(null);
+      setErrorSource(null);
+      void loadTables();
+    } else {
+      void run();
+    }
+  }, [errorSource, loadTables, run]);
 
   const onTemplate = (table: string) => {
     if (!table) return;
@@ -106,7 +141,7 @@ export function PartiqlPage() {
         <h1 className="text-[20px] font-bold">PartiQL エディタ</h1>
       </div>
 
-      <ErrorBanner error={error} onRetry={run} />
+      <ErrorBanner error={error} onRetry={retry} />
 
       <div className={`${CARD} overflow-hidden`}>
         <div className={CARD_HEAD}>ステートメント</div>
