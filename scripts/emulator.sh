@@ -112,8 +112,10 @@ start_pip() {
   "${PY}" -m venv "${venv}"
   VPY="$(venv_python "${venv}")"
 
-  # Install ministack from PyPI (idempotent).
-  "${VPY}" -m pip install --quiet --disable-pip-version-check ministack
+  # Install ministack from PyPI (idempotent). Pinned: 1.4.x changed the CLI
+  # (--port removed, GATEWAY_PORT env) and broke SNS->SQS delivery on the
+  # Windows runner; keep CI hermetic on the last known-good 1.3 release.
+  "${VPY}" -m pip install --quiet --disable-pip-version-check "ministack==1.3.72"
 
   # ministack listens on 4566 by default.
   nohup "${VPY}" -m ministack >"${logfile}" 2>&1 &

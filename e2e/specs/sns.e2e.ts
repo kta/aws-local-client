@@ -194,19 +194,38 @@ describe("sns", () => {
     await waitDisplayed(T("publish-result"));
 
     // The queue should receive an SNS envelope whose Message field matches.
+    // VisibilityTimeout: 0 keeps an inspected message visible for the next
+    // poll, so one slow/odd receive cannot hide the delivery (Windows runners).
     let delivered: string | undefined;
-    for (let i = 0; i < 20 && !delivered; i++) {
+    for (let i = 0; i < 30 && !delivered; i++) {
       const res = await sqs.send(
-        new ReceiveMessageCommand({ QueueUrl: url, MaxNumberOfMessages: 1, WaitTimeSeconds: 1 }),
+        new ReceiveMessageCommand({
+          QueueUrl: url,
+          MaxNumberOfMessages: 10,
+          WaitTimeSeconds: 1,
+          VisibilityTimeout: 0,
+        }),
       );
-      const body = res.Messages?.[0]?.Body;
-      if (body) {
+      for (const m of res.Messages ?? []) {
+        if (!m.Body) continue;
         try {
-          delivered = (JSON.parse(body) as { Message?: string }).Message;
+          delivered = (JSON.parse(m.Body) as { Message?: string }).Message ?? m.Body;
         } catch {
-          delivered = body; // raw-delivery fallback (not used here)
+          delivered = m.Body; // raw-delivery fallback (not used here)
         }
+        if (delivered) break;
       }
+    }
+    if (!delivered) {
+      // Diagnostic dump for the Windows-only delivery failure: confirm the
+      // subscription exists and what the queue looks like at timeout.
+      const subs = await sns.send(new ListSubscriptionsByTopicCommand({ TopicArn: topicArn }));
+      const attrs = await sqs.send(
+        new GetQueueAttributesCommand({ QueueUrl: url, AttributeNames: ["All"] }),
+      );
+      console.log("[R28-debug] topicArn=", topicArn);
+      console.log("[R28-debug] subscriptions=", JSON.stringify(subs.Subscriptions));
+      console.log("[R28-debug] queueAttrs=", JSON.stringify(attrs.Attributes));
     }
     expect(delivered).toBe(message);
   });
