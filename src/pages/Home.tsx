@@ -5,8 +5,24 @@ import { SERVICES } from "../services/registry";
 const CARD_BASE =
   "flex items-center gap-3 rounded-[10px] border bg-white p-[14px] text-left shadow-[0_1px_2px_rgba(0,21,41,.08)]";
 
-function Icon({ src }: { src: string }) {
-  return <img src={src} alt="" className="h-[42px] w-[42px] flex-none" />;
+function Icon({ src, name }: { src?: string; name: string }) {
+  if (src) return <img src={src} alt="" className="h-[42px] w-[42px] flex-none" />;
+  // Abbreviation tile for services without a bespoke icon: word initials for
+  // multi-word names ("Step Functions" -> SF), first three letters otherwise.
+  const words = name.split(/\s+/).filter(Boolean);
+  const abbr =
+    words.length > 1
+      ? words
+          .map((w) => w[0])
+          .join("")
+          .slice(0, 3)
+          .toUpperCase()
+      : name.slice(0, 3).toUpperCase();
+  return (
+    <span className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-[8px] bg-[#eceff4] text-[12px] font-bold tracking-wide text-[#5f6b7a]">
+      {abbr}
+    </span>
+  );
 }
 
 export function Home() {
@@ -32,7 +48,7 @@ export function Home() {
               data-testid={`service-${s.id}`}
               className={`${CARD_BASE} border-[#d9dee3] text-[#16191f] hover:border-[#0972d3]`}
             >
-              <Icon src={s.icon} />
+              <Icon src={s.icon} name={s.name} />
               <span className="text-[14px] font-bold">{s.name}</span>
             </Link>
           ) : (
@@ -41,15 +57,15 @@ export function Home() {
               aria-disabled="true"
               className={`${CARD_BASE} cursor-not-allowed border-[#d9dee3] text-[#16191f] opacity-45`}
             >
-              <Icon src={s.icon} />
+              <Icon src={s.icon} name={s.name} />
               <span className="text-[14px] font-bold">{s.name}</span>
             </div>
           ),
         )}
       </div>
       <p className="mt-8 text-[11px] text-[#8a94a6]" data-testid="aws-trademark-note">
-        Amazon Web Services、Amazon DynamoDB、Amazon SQS、Amazon SNS、Amazon S3、Amazon RDS、Amazon
-        EC2、Amazon EKS は、Amazon.com, Inc. またはその関連会社の商標です。
+        Amazon Web Services および本アプリに表示される各 AWS サービス名は、Amazon.com, Inc.
+        またはその関連会社の商標です。本アプリは AWS 非公式のローカルエミュレータ用クライアントです。
       </p>
     </div>
   );
