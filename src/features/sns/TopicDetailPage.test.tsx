@@ -177,6 +177,33 @@ describe("TopicDetailPage", () => {
     expect(await screen.findByTestId("publish-result")).toHaveTextContent("msg-123");
   });
 
+  it("publishes with message attributes, excluding rows without a name", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-publish"));
+
+    fireEvent.change(await screen.findByTestId("pub-message"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByTestId("pub-add-attr"));
+    fireEvent.change(screen.getByTestId("pub-attr-name-0"), { target: { value: "event" } });
+    fireEvent.change(screen.getByTestId("pub-attr-value-0"), {
+      target: { value: "order_created" },
+    });
+    // A second row with an empty name must be dropped from the request.
+    fireEvent.click(screen.getByTestId("pub-add-attr"));
+    fireEvent.change(screen.getByTestId("pub-attr-value-1"), { target: { value: "ignored" } });
+    fireEvent.click(screen.getByTestId("pub-save"));
+
+    await waitFor(() =>
+      expect(publish).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "1" }),
+        topic.topicArn,
+        expect.objectContaining({
+          message: "hello",
+          attributes: { event: { dataType: "String", stringValue: "order_created" } },
+        }),
+      ),
+    );
+  });
+
   it("shows group-id and dedup-id fields for a FIFO topic", async () => {
     renderPage("orders.fifo");
     fireEvent.click(await screen.findByTestId("tab-publish"));

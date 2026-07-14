@@ -336,6 +336,12 @@ function SubscribeModal({
   );
 }
 
+interface AttrRow {
+  name: string;
+  dataType: string;
+  value: string;
+}
+
 function PublishTab({
   topic,
   profile,
@@ -347,6 +353,7 @@ function PublishTab({
   const [message, setMessage] = useState("");
   const [groupId, setGroupId] = useState("");
   const [dedupId, setDedupId] = useState("");
+  const [attrs, setAttrs] = useState<AttrRow[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [actionError, setActionError] = useState<AppError | null>(null);
@@ -359,9 +366,17 @@ function PublishTab({
     setPublishing(true);
     setActionError(null);
     try {
+      // Rows without a name are excluded from the request.
+      const attributes = attrs
+        .filter((a) => a.name.trim())
+        .reduce<Record<string, { dataType: string; stringValue: string }>>((acc, a) => {
+          acc[a.name.trim()] = { dataType: a.dataType || "String", stringValue: a.value };
+          return acc;
+        }, {});
       const req: PublishRequest = {
         message,
         subject: subject.trim() || undefined,
+        attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
         groupId: topic.fifo ? groupId.trim() : undefined,
         dedupId: topic.fifo ? dedupId.trim() || undefined : undefined,
       };
@@ -422,6 +437,59 @@ function PublishTab({
             </label>
           </div>
         )}
+
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-700">メッセージ属性</span>
+            <button
+              className="text-sm text-blue-600 hover:underline"
+              data-testid="pub-add-attr"
+              onClick={() => setAttrs([...attrs, { name: "", dataType: "String", value: "" }])}
+            >
+              + 属性を追加
+            </button>
+          </div>
+          {attrs.map((a, i) => (
+            <div key={i} className="mb-2 flex items-center gap-2">
+              <input
+                className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+                placeholder="名前"
+                data-testid={`pub-attr-name-${i}`}
+                value={a.name}
+                onChange={(e) =>
+                  setAttrs(attrs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
+                }
+              />
+              <select
+                className="rounded border border-gray-300 px-2 py-1 text-sm"
+                data-testid={`pub-attr-type-${i}`}
+                value={a.dataType}
+                onChange={(e) =>
+                  setAttrs(attrs.map((x, j) => (j === i ? { ...x, dataType: e.target.value } : x)))
+                }
+              >
+                <option>String</option>
+                <option>Number</option>
+                <option>Binary</option>
+              </select>
+              <input
+                className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+                placeholder="値"
+                data-testid={`pub-attr-value-${i}`}
+                value={a.value}
+                onChange={(e) =>
+                  setAttrs(attrs.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))
+                }
+              />
+              <button
+                className="text-sm text-red-600 hover:underline"
+                onClick={() => setAttrs(attrs.filter((_, j) => j !== i))}
+              >
+                削除
+              </button>
+            </div>
+          ))}
+        </div>
 
         <div className="flex items-center justify-between">
           {result ? (
