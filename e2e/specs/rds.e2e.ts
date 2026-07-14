@@ -199,14 +199,23 @@ describe("rds", () => {
         timeoutMsg: `instance ${id} never became available`,
       });
 
-      // stop / start / reboot: each op must not raise an error banner.
-      for (const action of ["instance-stop", "instance-start", "instance-reboot"]) {
+      // stop / start / reboot: each op must not raise an error banner. Each op
+      // reloads the list and briefly unmounts the row, so wait for the
+      // row-scoped button to come back before clicking (slow Windows runners).
+      const clickRowAction = async (action: string) => {
+        await browser.waitUntil(async () => $(row).$(T(action)).isExisting(), {
+          timeout: 20000,
+          timeoutMsg: `${action} never reappeared in the ${id} row`,
+        });
         await $(row).$(T(action)).click();
+      };
+      for (const action of ["instance-stop", "instance-start", "instance-reboot"]) {
+        await clickRowAction(action);
         await expect($(T("error-banner"))).not.toBeExisting();
       }
 
       // modify allocated storage 20 -> 30.
-      await $(row).$(T("instance-modify")).click();
+      await clickRowAction("instance-modify");
       await setValueT("m-storage", "30");
       await clickT("m-save");
       await browser.waitUntil(
