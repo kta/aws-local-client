@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, toAppError } from "../api/client";
 import type { AppError, ConnectionProfile, DetectedEndpoint } from "../api/types";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { Button, Modal, ModalFooter } from "../components/ui";
 import { useConnections } from "../state/connections";
 
 const CONN_DEFAULT = "#7c4dff";
@@ -129,13 +130,9 @@ export function ConnectionsPage() {
         >
           {detecting ? "スキャン中..." : "ローカルをスキャン"}
         </button>
-        <button
-          onClick={() => setEditing(empty())}
-          data-testid="add-connection"
-          className="rounded-lg border border-[#0972d3] bg-[#0972d3] px-[14px] py-[6px] text-[13px] font-semibold text-white hover:bg-[#075bab]"
-        >
+        <Button variant="primary" onClick={() => setEditing(empty())} data-testid="add-connection">
           接続を追加
-        </button>
+        </Button>
       </div>
 
       <ErrorBanner error={error} />
@@ -197,13 +194,9 @@ export function ConnectionsPage() {
                 {statuses[p.id] === "checking" ? "確認中..." : "未確認"}
               </span>
             )}
-            <button
-              onClick={() => use(p)}
-              data-testid="use-connection"
-              className="rounded-md border border-[#0972d3] bg-[#0972d3] px-[10px] py-[3px] text-[12px] font-semibold text-white hover:bg-[#075bab]"
-            >
+            <Button variant="primary" size="sm" onClick={() => use(p)} data-testid="use-connection">
               この接続を使う
-            </button>
+            </Button>
             <button
               onClick={() => setEditing({ ...p })}
               data-testid="edit-connection"
@@ -211,27 +204,27 @@ export function ConnectionsPage() {
             >
               編集
             </button>
-            <button
-              onClick={() => remove(p)}
-              data-testid="delete-connection"
-              className="rounded-md border border-[color-mix(in_srgb,#d13212_45%,#d9dee3)] bg-white px-[10px] py-[3px] text-[12px] font-semibold text-[#d13212] hover:border-[#d13212]"
-            >
+            <Button variant="danger" size="sm" onClick={() => remove(p)} data-testid="delete-connection">
               削除
-            </button>
+            </Button>
           </div>
         ))}
       </div>
 
       {editing && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setEditing(null)}
+        <Modal
+          title="接続の設定"
+          onClose={() => setEditing(null)}
+          footer={
+            <ModalFooter
+              onCancel={() => setEditing(null)}
+              onConfirm={save}
+              confirmLabel="保存"
+              confirmTestId="save-connection"
+            />
+          }
         >
-          <div
-            className="w-full max-w-md space-y-3 rounded-[10px] bg-white p-6 shadow-[0_10px_40px_rgba(0,21,41,.25)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-[16px] font-bold">接続の設定</h2>
+          <div className="space-y-3">
             {field(
               "名前",
               editing.name,
@@ -269,23 +262,8 @@ export function ConnectionsPage() {
               "text",
               "conn-color",
             )}
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setEditing(null)}
-                className="rounded-lg border border-[#d9dee3] bg-white px-[14px] py-[6px] text-[13px] font-semibold text-[#16191f] hover:border-[#5f6b7a]"
-              >
-                キャンセル
-              </button>
-              <button
-                onClick={save}
-                data-testid="save-connection"
-                className="rounded-lg border border-[#0972d3] bg-[#0972d3] px-[14px] py-[6px] text-[13px] font-semibold text-white hover:bg-[#075bab]"
-              >
-                保存
-              </button>
-            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

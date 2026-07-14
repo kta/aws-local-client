@@ -3,6 +3,16 @@ import { useSearchParams } from "react-router-dom";
 import { api, toAppError } from "../../api/client";
 import type { AppError, PageResult, TableDetail } from "../../api/types";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import {
+  Button,
+  Card,
+  ConnectionRequired,
+  DataTable,
+  KeyChip,
+  PageHeader,
+  input,
+  type Column,
+} from "../../components/ui";
 import { useConnections } from "../../state/connections";
 import type { DdbItem } from "../../lib/ddbJson";
 import { cellText, columnsOf, keyOf, typedValue } from "./explore";
@@ -10,16 +20,11 @@ import { ItemEditorModal } from "./ItemEditorModal";
 
 const PAGE_SIZE = 50;
 
-const CARD = "rounded-[10px] border border-[#d9dee3] bg-white shadow-[0_1px_2px_rgba(0,21,41,.08)]";
-const CARD_HEAD = "flex items-center gap-[10px] border-b border-[#d9dee3] px-4 py-3 text-[14.5px] font-bold";
-const INPUT = "rounded-lg border border-[#d9dee3] bg-white px-[10px] py-[6px] text-[13px]";
-const BTN = "rounded-lg border border-[#d9dee3] bg-white px-[14px] py-[6px] text-[13px] font-semibold hover:border-[#5f6b7a]";
-const BTN_PRIMARY = "rounded-lg border border-[#0972d3] bg-[#0972d3] px-[14px] py-[6px] text-[13px] font-semibold text-white hover:bg-[#075bab] disabled:cursor-not-allowed disabled:opacity-45";
-const BTN_SM = "rounded-md border border-[#d9dee3] bg-white px-[10px] py-[3px] text-[12px] font-semibold hover:border-[#5f6b7a] disabled:cursor-not-allowed disabled:opacity-45";
-const BTN_SM_PRIMARY = "rounded-md border border-[#0972d3] bg-[#0972d3] px-[10px] py-[3px] text-[12px] font-semibold text-white hover:bg-[#075bab]";
-const KEY_CHIP = "inline-block rounded bg-[#0972d31f] px-2 py-px font-mono text-[11.5px] text-[#0972d3]";
-
 type Mode = "query" | "scan";
+
+// Row wrapper so the DataTable render callbacks (which receive only the row)
+// can reach the page index for the index-based selection Set.
+type ExploreRow = { item: DdbItem; index: number };
 
 export function ExplorePage() {
   const { active } = useConnections();
@@ -223,15 +228,54 @@ export function ExplorePage() {
     });
   };
 
+  const rows: ExploreRow[] = items.map((item, index) => ({ item, index }));
+  // The DataTable selection prop renders the checkbox without a data-testid,
+  // but e2e depends on `explore-row-checkbox`; render it as a leading column
+  // instead so the testid (and index-based Set toggle) are preserved.
+  const dataColumns: Column<ExploreRow>[] = [
+    {
+      key: "__select",
+      header: "",
+      headerClassName: "w-8",
+      render: ({ index }) => (
+        <input
+          type="checkbox"
+          aria-label="行を選択"
+          data-testid="explore-row-checkbox"
+          checked={selected.has(index)}
+          onChange={() => toggleRow(index)}
+        />
+      ),
+    },
+    ...columns.map(
+      (c): Column<ExploreRow> => ({
+        key: c,
+        header: c,
+        className: "max-w-[240px] truncate",
+        render: ({ item }) =>
+          c === pkName ? (
+            <button
+              onClick={() => setEditing({ item })}
+              data-testid="explore-pk-link"
+              className="cursor-pointer font-semibold text-[#0972d3] hover:underline"
+            >
+              {cellText(item, c)}
+            </button>
+          ) : (
+            cellText(item, c)
+          ),
+      }),
+    ),
+  ];
+
   return (
+    <ConnectionRequired>
     <div className="p-[22px] px-6 pb-[30px]">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-[20px] font-bold">項目を探索</h1>
-        <div className="flex-1" />
+      <PageHeader title="項目を探索">
         <select
           aria-label="テーブルを選択"
           data-testid="explore-table-select"
-          className={INPUT}
+          className={input}
           value={tableParam}
           onChange={(e) => setSearchParams({ table: e.target.value })}
         >
@@ -242,12 +286,11 @@ export function ExplorePage() {
             </option>
           ))}
         </select>
-      </div>
+      </PageHeader>
 
       <ErrorBanner error={error} onRetry={run} />
 
-      <div className={`${CARD} overflow-hidden`}>
-        <div className={CARD_HEAD}>スキャンまたはクエリ</div>
+      <Card title="スキャンまたはクエリ" overflowHidden>
         <div className="flex flex-col gap-3 p-4">
           <div className="flex flex-wrap items-center gap-x-[10px] gap-y-2">
             <label className="flex items-center gap-[6px] text-[13.5px] font-semibold">
@@ -274,7 +317,7 @@ export function ExplorePage() {
             <select
               aria-label="テーブルまたはインデックス"
               data-testid="explore-index-select"
-              className={INPUT}
+              className={input}
               value={indexName}
               onChange={(e) => setIndexName(e.target.value)}
             >
@@ -291,14 +334,12 @@ export function ExplorePage() {
             <>
               <div className="flex flex-wrap items-center gap-x-[10px] gap-y-2">
                 <span className="mb-[-6px] w-full text-[12px] text-[#5f6b7a]">パーティションキー</span>
-                <span className={KEY_CHIP}>
-                  {pkDef?.name ?? "pk"} ({pkDef?.attrType ?? "S"})
-                </span>
-                <select aria-label={`${pkDef?.name ?? "pk"} 条件`} className={INPUT} disabled>
+                <KeyChip keyDef={{ name: pkDef?.name ?? "pk", attrType: pkDef?.attrType ?? "S" }} />
+                <select aria-label={`${pkDef?.name ?? "pk"} 条件`} className={input} disabled>
                   <option>=</option>
                 </select>
                 <input
-                  className={`${INPUT} w-[180px] font-mono`}
+                  className={`${input} w-[180px] font-mono`}
                   aria-label={`${pkDef?.name ?? "pk"} の値`}
                   data-testid="explore-pk-value"
                   value={pkValue}
@@ -308,13 +349,11 @@ export function ExplorePage() {
               {skDef && (
                 <div className="flex flex-wrap items-center gap-x-[10px] gap-y-2">
                   <span className="mb-[-6px] w-full text-[12px] text-[#5f6b7a]">ソートキー(任意)</span>
-                  <span className={KEY_CHIP}>
-                    {skDef.name} ({skDef.attrType})
-                  </span>
+                  <KeyChip keyDef={skDef} />
                   <select
                     aria-label={`${skDef.name} 条件`}
                     data-testid="explore-sk-op"
-                    className={INPUT}
+                    className={input}
                     value={skOp}
                     onChange={(e) => setSkOp(e.target.value as typeof skOp)}
                   >
@@ -322,7 +361,7 @@ export function ExplorePage() {
                     <option value="eq">=</option>
                   </select>
                   <input
-                    className={`${INPUT} w-[180px] font-mono`}
+                    className={`${input} w-[180px] font-mono`}
                     aria-label={`${skDef.name} の値`}
                     data-testid="explore-sk-value"
                     value={skValue}
@@ -337,7 +376,7 @@ export function ExplorePage() {
             <div className="flex flex-wrap items-center gap-x-[10px] gap-y-2">
               <span className="mb-[-6px] w-full text-[12px] text-[#5f6b7a]">フィルター(任意)</span>
               <input
-                className={INPUT}
+                className={input}
                 placeholder="属性名"
                 aria-label="フィルタ属性名"
                 data-testid="explore-filter-attr"
@@ -347,7 +386,7 @@ export function ExplorePage() {
               <select
                 aria-label="フィルタ条件"
                 data-testid="explore-filter-op"
-                className={INPUT}
+                className={input}
                 value={filterOp}
                 onChange={(e) => setFilterOp(e.target.value as typeof filterOp)}
               >
@@ -355,7 +394,7 @@ export function ExplorePage() {
                 <option value="contains">contains</option>
               </select>
               <input
-                className={`${INPUT} w-[180px] font-mono`}
+                className={`${input} w-[180px] font-mono`}
                 placeholder="値 (文字列)"
                 aria-label="フィルタ値"
                 data-testid="explore-filter-value"
@@ -366,109 +405,65 @@ export function ExplorePage() {
           )}
 
           <div className="flex flex-wrap items-center gap-[10px]">
-            <button onClick={run} disabled={runDisabled} data-testid="explore-run" className={BTN_PRIMARY}>
+            <Button variant="primary" onClick={run} disabled={runDisabled} data-testid="explore-run">
               実行
-            </button>
-            <button onClick={reset} data-testid="explore-reset" className={BTN}>
+            </Button>
+            <Button onClick={reset} data-testid="explore-reset">
               リセット
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
+      </Card>
 
-      <div className={`${CARD} mt-[14px] overflow-hidden`}>
-        <div className={CARD_HEAD}>
-          <span data-testid="explore-count">返された項目 ({page?.count ?? 0})</span>
-          <span className="flex-1" />
-          <div className="relative">
-            <button
-              onClick={() => setActionsOpen((o) => !o)}
-              disabled={selected.size === 0}
-              data-testid="explore-actions"
-              className={BTN_SM}
+      <Card
+        overflowHidden
+        className="mt-[14px]"
+        title={<span data-testid="explore-count">返された項目 ({page?.count ?? 0})</span>}
+        headerActions={
+          <>
+            <div className="relative">
+              <Button
+                size="sm"
+                onClick={() => setActionsOpen((o) => !o)}
+                disabled={selected.size === 0}
+                data-testid="explore-actions"
+              >
+                アクション ▾
+              </Button>
+              {actionsOpen && selected.size > 0 && (
+                <div className="absolute right-0 z-10 mt-1 w-32 rounded-md border border-[#d9dee3] bg-white py-1 shadow-lg">
+                  <button
+                    onClick={deleteSelected}
+                    data-testid="explore-delete"
+                    className="block w-full px-3 py-1.5 text-left text-[13px] text-[#d13212] hover:bg-[#f5f6f7]"
+                  >
+                    削除
+                  </button>
+                </div>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setEditing({ item: null })}
+              data-testid="explore-create-item"
             >
-              アクション ▾
-            </button>
-            {actionsOpen && selected.size > 0 && (
-              <div className="absolute right-0 z-10 mt-1 w-32 rounded-md border border-[#d9dee3] bg-white py-1 shadow-lg">
-                <button
-                  onClick={deleteSelected}
-                  data-testid="explore-delete"
-                  className="block w-full px-3 py-1.5 text-left text-[13px] text-[#d13212] hover:bg-[#f5f6f7]"
-                >
-                  削除
-                </button>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => setEditing({ item: null })}
-            data-testid="explore-create-item"
-            className={BTN_SM_PRIMARY}
-          >
-            項目を作成
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left font-mono text-xs">
-            <thead>
-              <tr className="bg-[#f5f6f7] text-[12px] text-[#5f6b7a]">
-                <th className="w-8 border-b border-[#d9dee3] px-[14px] py-[9px]" />
-                {columns.map((c) => (
-                  <th key={c} className="border-b border-[#d9dee3] px-[14px] py-[9px] font-semibold">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={columns.length + 1} className="p-6 text-center text-[#5f6b7a]">
-                    読み込み中...
-                  </td>
-                </tr>
-              )}
-              {!loading && items.length === 0 && (
-                <tr>
-                  <td colSpan={columns.length + 1} className="p-6 text-center text-[#5f6b7a]">
-                    {mode === "query" && !page ? "クエリ条件を入力して実行してください" : "アイテムがありません"}
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                items.map((item, i) => (
-                  <tr key={i} data-testid="explore-row" className="hover:bg-[#0972d30d]">
-                    <td className="border-b border-[#e9ecef] px-[14px] py-[9px]">
-                      <input
-                        type="checkbox"
-                        aria-label="行を選択"
-                        data-testid="explore-row-checkbox"
-                        checked={selected.has(i)}
-                        onChange={() => toggleRow(i)}
-                      />
-                    </td>
-                    {columns.map((c) => (
-                      <td key={c} className="max-w-[240px] truncate border-b border-[#e9ecef] px-[14px] py-[9px]">
-                        {c === pkName ? (
-                          <button
-                            onClick={() => setEditing({ item })}
-                            data-testid="explore-pk-link"
-                            className="cursor-pointer font-semibold text-[#0972d3] hover:underline"
-                          >
-                            {cellText(item, c)}
-                          </button>
-                        ) : (
-                          cellText(item, c)
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+              項目を作成
+            </Button>
+          </>
+        }
+      >
+        <DataTable
+          variant="results"
+          columns={dataColumns}
+          rows={rows}
+          rowKey={(r) => String(r.index)}
+          rowTestId="explore-row"
+          loading={loading}
+          emptyText={
+            mode === "query" && !page ? "クエリ条件を入力して実行してください" : "アイテムがありません"
+          }
+        />
 
         <div className="flex items-center gap-3 border-t border-[#e9ecef] px-4 py-3 text-[12.5px] text-[#5f6b7a]">
           <span>
@@ -495,11 +490,12 @@ export function ExplorePage() {
             </button>
           </div>
         </div>
-      </div>
+      </Card>
 
       {editing && (
         <ItemEditorModal initial={editing.item} onSubmit={saveItem} onClose={() => setEditing(null)} />
       )}
     </div>
+    </ConnectionRequired>
   );
 }

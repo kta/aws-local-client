@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CreateTableRequest, GsiSpec, KeyAttr } from "../../api/types";
+import { Modal, ModalFooter } from "../../components/ui";
 
 const ATTR_TYPES = ["S", "N", "B"] as const;
 
@@ -75,9 +76,23 @@ export function CreateTableModal({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-lg space-y-3 rounded-lg bg-white p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold">テーブルの作成</h2>
+    <Modal
+      title="テーブルの作成"
+      onClose={onClose}
+      maxWidth="lg"
+      footer={
+        <ModalFooter
+          onCancel={onClose}
+          onConfirm={submit}
+          confirmLabel="作成"
+          confirmingLabel="作成中..."
+          confirmDisabled={!valid}
+          confirmTestId="ct-submit"
+          busy={submitting}
+        />
+      }
+    >
+      <div className="space-y-3">
         <label className="block text-sm">
           <span className="text-gray-600">テーブル名</span>
           <input
@@ -147,21 +162,7 @@ export function CreateTableModal({
             </div>
           ))}
         </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="rounded border border-gray-300 px-3 py-1 text-sm">
-            キャンセル
-          </button>
-          <button
-            onClick={submit}
-            disabled={!valid || submitting}
-            data-testid="ct-submit"
-            className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {submitting ? "作成中..." : "作成"}
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -2,36 +2,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, toAppError } from "../../api/client";
 import type { AppError } from "../../api/types";
 import { ErrorBanner } from "../../components/ErrorBanner";
+import {
+  Button,
+  Card,
+  card,
+  type Column,
+  ConnectionRequired,
+  cx,
+  DataTable,
+  input,
+} from "../../components/ui";
 import { useConnections } from "../../state/connections";
 import type { DdbItem } from "../../lib/ddbJson";
-import { ddbToPlain } from "../../lib/ddbJson";
-
-const CARD = "rounded-[10px] border border-[#d9dee3] bg-white shadow-[0_1px_2px_rgba(0,21,41,.08)]";
-const CARD_HEAD = "flex items-center gap-[10px] border-b border-[#d9dee3] px-4 py-3 text-[14.5px] font-bold";
-const INPUT = "rounded-lg border border-[#d9dee3] bg-white px-[10px] py-[6px] text-[13px]";
-const BTN = "rounded-lg border border-[#d9dee3] bg-white px-[14px] py-[6px] text-[13px] font-semibold hover:border-[#5f6b7a] disabled:cursor-not-allowed disabled:opacity-45";
-const BTN_PRIMARY = "rounded-lg border border-[#0972d3] bg-[#0972d3] px-[14px] py-[6px] text-[13px] font-semibold text-white hover:bg-[#075bab] disabled:cursor-not-allowed disabled:opacity-45";
+import { cellText, columnsOf } from "./explore";
 
 const MAX_COLUMNS = 12;
-
-/** Union of keys across items, preserving first-seen order, capped at MAX_COLUMNS. */
-function columnsOf(items: DdbItem[]): string[] {
-  const cols: string[] = [];
-  for (const item of items) {
-    for (const k of Object.keys(item)) {
-      if (!cols.includes(k)) cols.push(k);
-    }
-  }
-  return cols.slice(0, MAX_COLUMNS);
-}
-
-/** Render a single cell as display text (objects/arrays are JSON-stringified). */
-function cellText(item: DdbItem, col: string): string {
-  const v = item[col];
-  if (v === undefined) return "";
-  const plain = ddbToPlain(v);
-  return typeof plain === "object" && plain !== null ? JSON.stringify(plain) : String(plain);
-}
 
 export function PartiqlPage() {
   const { active } = useConnections();
@@ -131,101 +116,97 @@ export function PartiqlPage() {
     setStatement(`SELECT * FROM "${table}"`);
   };
 
-  const columns = useMemo(() => columnsOf(items), [items]);
+  const columns = useMemo<Column<DdbItem>[]>(
+    () =>
+      columnsOf(null, items, MAX_COLUMNS).map((c) => ({
+        key: c,
+        header: c,
+        className: "max-w-[240px] truncate",
+        render: (item: DdbItem) => cellText(item, c),
+      })),
+    [items],
+  );
   const runDisabled = running || !statement.trim();
   const showSuccess = hasRun && items.length === 0;
 
   return (
-    <div className="p-[22px] px-6 pb-[30px]">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="text-[20px] font-bold">PartiQL エディタ</h1>
-      </div>
-
-      <ErrorBanner error={error} onRetry={retry} />
-
-      <div className={`${CARD} overflow-hidden`}>
-        <div className={CARD_HEAD}>ステートメント</div>
-        <div className="flex flex-col gap-3 p-4">
-          <div className="flex flex-wrap items-center gap-[10px]">
-            <span className="text-[12px] text-[#5f6b7a]">テンプレート</span>
-            <select
-              aria-label="テンプレートを選択"
-              data-testid="partiql-template-select"
-              className={INPUT}
-              value=""
-              onChange={(e) => onTemplate(e.target.value)}
-            >
-              <option value="">テーブルを選択...</option>
-              {tables.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-          <textarea
-            data-testid="partiql-statement"
-            aria-label="PartiQL ステートメント"
-            className={`${INPUT} h-32 w-full font-mono`}
-            placeholder={'SELECT * FROM "テーブル名"'}
-            value={statement}
-            onChange={(e) => setStatement(e.target.value)}
-          />
-          <div className="flex flex-wrap items-center gap-[10px]">
-            <button onClick={run} disabled={runDisabled} data-testid="partiql-run" className={BTN_PRIMARY}>
-              実行
-            </button>
-          </div>
+    <ConnectionRequired>
+      <div className="p-[22px] px-6 pb-[30px]">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <h1 className="text-[20px] font-bold">PartiQL エディタ</h1>
         </div>
-      </div>
 
-      {showSuccess && (
-        <div
-          data-testid="partiql-success"
-          className={`${CARD} mt-[14px] px-4 py-3 text-[13px] text-[#037f51]`}
-        >
-          ステートメントを実行しました(結果 0 件)
-        </div>
-      )}
+        <ErrorBanner error={error} onRetry={retry} />
 
-      {items.length > 0 && (
-        <div className={`${CARD} mt-[14px] overflow-hidden`}>
-          <div className={CARD_HEAD}>
-            <span data-testid="partiql-count">結果 ({items.length})</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table data-testid="partiql-results" className="w-full text-left font-mono text-xs">
-              <thead>
-                <tr className="bg-[#f5f6f7] text-[12px] text-[#5f6b7a]">
-                  {columns.map((c) => (
-                    <th key={c} className="border-b border-[#d9dee3] px-[14px] py-[9px] font-semibold">
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, i) => (
-                  <tr key={i} data-testid="partiql-row" className="hover:bg-[#0972d30d]">
-                    {columns.map((c) => (
-                      <td key={c} className="max-w-[240px] truncate border-b border-[#e9ecef] px-[14px] py-[9px]">
-                        {cellText(item, c)}
-                      </td>
-                    ))}
-                  </tr>
+        <Card title="ステートメント" overflowHidden>
+          <div className="flex flex-col gap-3 p-4">
+            <div className="flex flex-wrap items-center gap-[10px]">
+              <span className="text-[12px] text-[#5f6b7a]">テンプレート</span>
+              <select
+                aria-label="テンプレートを選択"
+                data-testid="partiql-template-select"
+                className={input}
+                value=""
+                onChange={(e) => onTemplate(e.target.value)}
+              >
+                <option value="">テーブルを選択...</option>
+                {tables.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
-              </tbody>
-            </table>
-          </div>
-          {nextToken && (
-            <div className="flex items-center border-t border-[#e9ecef] px-4 py-3">
-              <button onClick={loadMore} disabled={running} data-testid="partiql-load-more" className={BTN}>
-                さらに読み込む
-              </button>
+              </select>
             </div>
-          )}
-        </div>
-      )}
-    </div>
+            <textarea
+              data-testid="partiql-statement"
+              aria-label="PartiQL ステートメント"
+              className={`${input} h-32 w-full font-mono`}
+              placeholder={'SELECT * FROM "テーブル名"'}
+              value={statement}
+              onChange={(e) => setStatement(e.target.value)}
+            />
+            <div className="flex flex-wrap items-center gap-[10px]">
+              <Button variant="primary" onClick={run} disabled={runDisabled} data-testid="partiql-run">
+                実行
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {showSuccess && (
+          <div
+            data-testid="partiql-success"
+            className={cx(card, "mt-[14px] px-4 py-3 text-[13px] text-[#037f51]")}
+          >
+            ステートメントを実行しました(結果 0 件)
+          </div>
+        )}
+
+        {items.length > 0 && (
+          <Card
+            overflowHidden
+            className="mt-[14px]"
+            title={<span data-testid="partiql-count">結果 ({items.length})</span>}
+          >
+            <div data-testid="partiql-results">
+              <DataTable
+                variant="results"
+                columns={columns}
+                rows={items}
+                rowKey={(_, i) => String(i)}
+                rowTestId="partiql-row"
+              />
+            </div>
+            {nextToken && (
+              <div className="flex items-center border-t border-[#e9ecef] px-4 py-3">
+                <Button onClick={loadMore} disabled={running} data-testid="partiql-load-more">
+                  さらに読み込む
+                </Button>
+              </div>
+            )}
+          </Card>
+        )}
+      </div>
+    </ConnectionRequired>
   );
 }

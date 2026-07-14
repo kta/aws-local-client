@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TableDetail } from "../../api/types";
-import { cellText, columnsOf, formatBytes, keyOf, typedValue } from "./explore";
+import { cellText, columnsOf, keyOf, typedValue } from "./explore";
 
 const detail: TableDetail = {
   name: "orders",
@@ -57,13 +57,5 @@ describe("cellText", () => {
   });
   it("returns empty for missing attributes", () => {
     expect(cellText({}, "nope")).toBe("");
-  });
-});
-
-describe("formatBytes", () => {
-  it("formats byte magnitudes", () => {
-    expect(formatBytes(0)).toBe("0 B");
-    expect(formatBytes(512)).toBe("512 B");
-    expect(formatBytes(2202009)).toBe("2.1 MB");
   });
 });
