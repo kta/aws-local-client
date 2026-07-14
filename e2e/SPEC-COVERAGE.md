@@ -86,3 +86,11 @@ localstack(unsupported 分岐)で検証。R50 は describe 対応(ministack/floc
 **2026-07-13 の検証では LocalStack / floci / ministack の 3 種すべてが GSI をサポートし、全テストが green**
 (スキップ 0)。エミュレータが GSI 非対応の場合に備え、環境変数 `E2E_NO_GSI=1` を指定すると
 これらのアサートをスキップできる安全弁を用意している(既定では有効)。詳細はタスク P2-4 レポート参照。
+
+## R-id 対象外の UI 仕様
+
+Home サービスグリッド(ロゴ+名前のみ / 有効サービス先頭 / floci 対応全サービス掲載 /
+公式アイコン / 検索ボックス)とリージョン一覧拡充は
+`docs/superpowers/specs/2026-07-14-home-service-grid-design.md` の確定仕様だが、
+R-id は採番しない。回帰ガードは smoke.e2e.ts(Home 経由遷移)+ `src/pages/Home.test.tsx`
+(検索・enabled 先頭ソート)+ connections.e2e.ts#R17(リージョン切替)が担う。
