@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AppError, ConnectionProfile, DetectedEndpoint } from "./types";
 import { ddb } from "./dynamodb";
+import { sqs } from "./sqs";
 
 export function toAppError(e: unknown): AppError {
   if (typeof e === "object" && e !== null && "kind" in e && "message" in e) {
@@ -18,4 +19,5 @@ export const api = {
   detectConnections: () => invoke<DetectedEndpoint[]>("detect_connections"),
 
   ddb,
+  sqs,
 };

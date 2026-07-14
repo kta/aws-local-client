@@ -59,6 +59,15 @@ pub fn run() {
             commands::dynamodb::ddb_create_backup,
             commands::dynamodb::ddb_delete_backup,
             commands::dynamodb::ddb_restore_backup,
+            commands::sqs::sqs_list_queues,
+            commands::sqs::sqs_get_queue,
+            commands::sqs::sqs_create_queue,
+            commands::sqs::sqs_delete_queue,
+            commands::sqs::sqs_set_queue_attributes,
+            commands::sqs::sqs_send_message,
+            commands::sqs::sqs_receive_messages,
+            commands::sqs::sqs_delete_message,
+            commands::sqs::sqs_purge_queue,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
