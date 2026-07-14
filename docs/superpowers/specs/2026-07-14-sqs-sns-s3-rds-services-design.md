@@ -163,7 +163,9 @@ rds_delete_instance(profile, id)                            // SkipFinalSnapshot
 ### 2.2 フロントエンド(src)
 
 - `src/api/{sqs,sns,s3,rds}.ts` — invoke ラッパー(`api/dynamodb.ts` と同型)。`api/client.ts` の
-  `api` オブジェクトに `sqs` / `sns` / `s3` / `rds` として合成。型は `api/types.ts` に追記。
+  `api` オブジェクトに `sqs` / `sns` / `s3` / `rds` として合成。
+  ワイヤ型は各 `api/<service>.ts` 内で export する(並列実装時の `types.ts` コンフリクト回避。
+  DynamoDB の既存型は `types.ts` のまま)。
 - `src/features/sqs/` — `QueuesPage.tsx`(R22/R23)、`QueueDetailPage.tsx`(R23〜R25、
   タブ: メッセージ / 設定)、`CreateQueueModal.tsx`、`SendMessageModal.tsx`、`service.tsx`。
 - `src/features/sns/` — `TopicsPage.tsx`(R26)、`TopicDetailPage.tsx`(R27/R28、
