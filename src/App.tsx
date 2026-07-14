@@ -2,13 +2,8 @@ import { useEffect, useRef } from "react";
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ConnectionsPage } from "./pages/ConnectionsPage";
-import { BackupsPage } from "./features/dynamodb/BackupsPage";
-import { DashboardPage } from "./features/dynamodb/DashboardPage";
-import { ExplorePage } from "./features/dynamodb/ExplorePage";
-import { PartiqlPage } from "./features/dynamodb/PartiqlPage";
-import { TableDetailPage } from "./features/dynamodb/TableDetailPage";
 import { Home } from "./pages/Home";
-import { TablesPage } from "./features/dynamodb/TablesPage";
+import { SERVICES } from "./services/registry";
 import { ConnectionsProvider, useConnections } from "./state/connections";
 
 function AppRoutes() {
@@ -37,12 +32,9 @@ function AppRoutes() {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/connections" element={<ConnectionsPage />} />
-        <Route path="/dynamodb" element={<DashboardPage />} />
-        <Route path="/dynamodb/tables" element={<TablesPage />} />
-        <Route path="/dynamodb/tables/:tableName" element={<TableDetailPage />} />
-        <Route path="/dynamodb/explore" element={<ExplorePage />} />
-        <Route path="/dynamodb/partiql" element={<PartiqlPage />} />
-        <Route path="/dynamodb/backups" element={<BackupsPage />} />
+        {SERVICES.flatMap((s) => s.routes).map((r) => (
+          <Route key={r.path} path={r.path} element={r.element} />
+        ))}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useConnections } from "../state/connections";
+import { serviceForPath } from "../services/registry";
 import { SideNav } from "./SideNav";
 
 const CONN_DEFAULT = "#7c4dff";
@@ -17,14 +18,17 @@ const COMMON_REGIONS = [
 
 type Crumb = { service?: string; parts: string[] };
 
+// Non-service (fixed) paths keep a small hand-maintained crumb table.
+const FIXED_CRUMBS: Record<string, Crumb> = {
+  "/connections": { parts: ["接続管理"] },
+};
+
 function buildCrumb(pathname: string): Crumb | null {
-  if (pathname === "/connections") return { parts: ["接続管理"] };
-  if (pathname.startsWith("/dynamodb/tables/")) {
-    const name = decodeURIComponent(pathname.slice("/dynamodb/tables/".length));
-    return { service: "DynamoDB", parts: ["テーブル", name] };
-  }
-  if (pathname.startsWith("/dynamodb/tables")) return { service: "DynamoDB", parts: ["テーブル"] };
-  if (pathname.startsWith("/dynamodb/explore")) return { service: "DynamoDB", parts: ["項目を探索"] };
+  const fixed = FIXED_CRUMBS[pathname];
+  if (fixed) return fixed;
+  const service = serviceForPath(pathname);
+  const parts = service?.crumbLabel?.(pathname);
+  if (service && parts) return { service: service.name, parts };
   return null; // "/" (home) shows no crumb
 }
 
@@ -33,7 +37,7 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const connColor = active?.color || CONN_DEFAULT;
-  const showSidebar = location.pathname.startsWith("/dynamodb");
+  const showSidebar = !!serviceForPath(location.pathname)?.nav.length;
   const crumb = buildCrumb(location.pathname);
 
   const regionOptions =
