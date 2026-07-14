@@ -9,6 +9,7 @@ import {
   E2E_ENDPOINT,
   T,
   clickT,
+  countByTestId,
   gotoInstances,
   gotoParameterGroups,
   gotoRdsDashboard,
@@ -219,6 +220,36 @@ describe("rds", () => {
       );
 
       await rds.send(new DeleteDBInstanceCommand({ DBInstanceIdentifier: id, SkipFinalSnapshot: true }));
+    });
+  });
+
+  // R48: on a describe-capable but create-rejecting emulator (floci), an instance
+  // operation that the emulator does not implement must surface as a normal error
+  // banner (not the unsupported takeover). floci exposes no instances (create is
+  // rejected there), so if a row happens to exist we stop it directly; otherwise
+  // we drive the same runOp error surface via a create, which floci also rejects.
+  describe("read-only emulator operations (R48)", () => {
+    beforeEach(function () {
+      if (branch !== "readonly") this.skip();
+    });
+
+    it("R48: surfaces an error banner when an operation is rejected", async () => {
+      await gotoInstances();
+      // The list renders (create action present, no unsupported takeover).
+      await waitDisplayed(T("instances-create"));
+      await expect($(T("rds-unsupported"))).not.toBeExisting();
+
+      const stopCount = await countByTestId("instance-stop");
+      if (stopCount > 0) {
+        await clickT("instance-stop");
+      } else {
+        await clickT("instances-create");
+        await setValueT("i-id", `rds48ro-${stamp}`);
+        await setValueT("i-username", "admin");
+        await setValueT("i-password", "password123");
+        await clickT("i-save");
+      }
+      await waitDisplayed(T("error-banner"));
     });
   });
 
