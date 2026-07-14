@@ -156,6 +156,15 @@ jobs:
         env:
           E2E_ENDPOINT: http://localhost:4566
 
+      - name: Dump ministack log on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "== installed version =="
+          "${TMPDIR:-/tmp}/nlsd-emulator/ministack-venv/Scripts/python.exe" -m pip show ministack | head -3 || true
+          echo "== ministack log tail =="
+          tail -200 "${TMPDIR:-/tmp}/nlsd-emulator/ministack-pip.log" || true
+
       - name: Stop ministack (pip)
         if: always()
         shell: bash

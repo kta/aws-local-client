@@ -216,6 +216,17 @@ describe("sns", () => {
         if (delivered) break;
       }
     }
+    if (!delivered) {
+      // Diagnostic dump for the Windows-only delivery failure: confirm the
+      // subscription exists and what the queue looks like at timeout.
+      const subs = await sns.send(new ListSubscriptionsByTopicCommand({ TopicArn: topicArn }));
+      const attrs = await sqs.send(
+        new GetQueueAttributesCommand({ QueueUrl: url, AttributeNames: ["All"] }),
+      );
+      console.log("[R28-debug] topicArn=", topicArn);
+      console.log("[R28-debug] subscriptions=", JSON.stringify(subs.Subscriptions));
+      console.log("[R28-debug] queueAttrs=", JSON.stringify(attrs.Attributes));
+    }
     expect(delivered).toBe(message);
   });
 
