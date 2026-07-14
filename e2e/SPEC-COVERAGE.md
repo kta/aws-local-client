@@ -56,9 +56,10 @@ AWS SDK の ListBackups により実機プローブ)。対応(ministack)なら R
 [^rds]: R33 / R34 / R35 は接続先エミュレータの RDS 対応度に応じて自動分岐する(`rds.e2e.ts`
 の `before` で AWS SDK の DescribeDBInstances / CreateDBInstance を実機プローブ)。
 describe + create 可(ministack)なら R33 が走り、describe 非対応(localstack:3)なら R34、
-describe 可・create 不可なら R35 が走る。走らない分岐は自己スキップする(`backups.e2e.ts`
-の分岐方式を踏襲)。**2026-07-14 の検証では ministack が R33 分岐、localstack:3 が R34 分岐で
-それぞれ green**(他分岐はスキップ)。
+describe 可・create 不可(floci の docker.sock 非マウント既定起動)なら R35 が走る。
+走らない分岐は自己スキップする(`backups.e2e.ts` の分岐方式を踏襲)。
+**2026-07-14 の検証では ministack が R33 分岐、localstack:3 が R34 分岐、floci が R35 分岐で
+それぞれ green**(各エミュレータで他 2 分岐はスキップ)。
 
 [^gsi]: GSI 固有テスト(R5「with a GSI」/ R8「against a GSI」/ R15 のインデックス名アサート)。
 **2026-07-13 の検証では LocalStack / floci / ministack の 3 種すべてが GSI をサポートし、全テストが green**
