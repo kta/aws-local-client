@@ -190,30 +190,35 @@ describe("sns", () => {
     await gotoTopicDetail(topicName);
     await clickT("tab-publish");
     await setValueT("pub-message", message);
-    await clickT("pub-save");
-    await waitDisplayed(T("publish-result"));
 
-    // The queue should receive an SNS envelope whose Message field matches.
+    // ministack occasionally drops a single SNS->SQS fanout on the Windows
+    // runner (subscription and policy verified present at failure time, queue
+    // stays empty). Retry the UI publish up to 3 times; a systematic delivery
+    // failure still fails the test, a sporadic drop does not.
     // VisibilityTimeout: 0 keeps an inspected message visible for the next
-    // poll, so one slow/odd receive cannot hide the delivery (Windows runners).
+    // poll, so one slow/odd receive cannot hide the delivery.
     let delivered: string | undefined;
-    for (let i = 0; i < 30 && !delivered; i++) {
-      const res = await sqs.send(
-        new ReceiveMessageCommand({
-          QueueUrl: url,
-          MaxNumberOfMessages: 10,
-          WaitTimeSeconds: 1,
-          VisibilityTimeout: 0,
-        }),
-      );
-      for (const m of res.Messages ?? []) {
-        if (!m.Body) continue;
-        try {
-          delivered = (JSON.parse(m.Body) as { Message?: string }).Message ?? m.Body;
-        } catch {
-          delivered = m.Body; // raw-delivery fallback (not used here)
+    for (let attempt = 0; attempt < 3 && !delivered; attempt++) {
+      await clickT("pub-save");
+      await waitDisplayed(T("publish-result"));
+      for (let i = 0; i < 10 && !delivered; i++) {
+        const res = await sqs.send(
+          new ReceiveMessageCommand({
+            QueueUrl: url,
+            MaxNumberOfMessages: 10,
+            WaitTimeSeconds: 1,
+            VisibilityTimeout: 0,
+          }),
+        );
+        for (const m of res.Messages ?? []) {
+          if (!m.Body) continue;
+          try {
+            delivered = (JSON.parse(m.Body) as { Message?: string }).Message ?? m.Body;
+          } catch {
+            delivered = m.Body; // raw-delivery fallback (not used here)
+          }
+          if (delivered) break;
         }
-        if (delivered) break;
       }
     }
     if (!delivered) {
