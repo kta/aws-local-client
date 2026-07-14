@@ -9,17 +9,10 @@ function Icon({ src }: { src: string }) {
   return <img src={src} alt="" className="h-[42px] w-[42px] flex-none" />;
 }
 
-function Body({ name, desc }: { name: string; desc: string }) {
-  return (
-    <span>
-      <span className="block text-[14px] font-bold">{name}</span>
-      <span className="block text-[12px] text-[#5f6b7a]">{desc}</span>
-    </span>
-  );
-}
-
 export function Home() {
   const { active } = useConnections();
+  // Enabled services first; keep the registry order within each group.
+  const services = [...SERVICES].sort((a, b) => Number(b.enabled) - Number(a.enabled));
   return (
     <div className="p-[22px] px-6 pb-[30px]">
       <div className="mb-4 flex items-center gap-3">
@@ -31,7 +24,7 @@ export function Home() {
         </span>
       </div>
       <div className="grid gap-[14px] [grid-template-columns:repeat(auto-fill,minmax(210px,1fr))]">
-        {SERVICES.map((s) =>
+        {services.map((s) =>
           s.enabled ? (
             <Link
               key={s.id}
@@ -40,7 +33,7 @@ export function Home() {
               className={`${CARD_BASE} border-[#d9dee3] text-[#16191f] hover:border-[#0972d3]`}
             >
               <Icon src={s.icon} />
-              <Body name={s.name} desc={s.description} />
+              <span className="text-[14px] font-bold">{s.name}</span>
             </Link>
           ) : (
             <div
@@ -49,7 +42,7 @@ export function Home() {
               className={`${CARD_BASE} cursor-not-allowed border-[#d9dee3] text-[#16191f] opacity-45`}
             >
               <Icon src={s.icon} />
-              <Body name={s.name} desc={s.description} />
+              <span className="text-[14px] font-bold">{s.name}</span>
             </div>
           ),
         )}
