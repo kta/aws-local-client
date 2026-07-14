@@ -1,7 +1,11 @@
 pub mod attr;
+pub mod commands;
 pub mod connections;
-pub mod ddb;
 pub mod error;
+
+// Back-compat re-export so existing call sites / integration tests referring to
+// `app_lib::ddb` keep resolving after the move to `commands::dynamodb`.
+pub use commands::dynamodb as ddb;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -41,19 +45,19 @@ pub fn run() {
             connections::save_connection,
             connections::delete_connection,
             connections::detect_connections,
-            ddb::ddb_list_tables,
-            ddb::ddb_describe_table,
-            ddb::ddb_scan,
-            ddb::ddb_query,
-            ddb::ddb_put_item,
-            ddb::ddb_delete_item,
-            ddb::ddb_create_table,
-            ddb::ddb_delete_table,
-            ddb::ddb_execute_statement,
-            ddb::ddb_list_backups,
-            ddb::ddb_create_backup,
-            ddb::ddb_delete_backup,
-            ddb::ddb_restore_backup,
+            commands::dynamodb::ddb_list_tables,
+            commands::dynamodb::ddb_describe_table,
+            commands::dynamodb::ddb_scan,
+            commands::dynamodb::ddb_query,
+            commands::dynamodb::ddb_put_item,
+            commands::dynamodb::ddb_delete_item,
+            commands::dynamodb::ddb_create_table,
+            commands::dynamodb::ddb_delete_table,
+            commands::dynamodb::ddb_execute_statement,
+            commands::dynamodb::ddb_list_backups,
+            commands::dynamodb::ddb_create_backup,
+            commands::dynamodb::ddb_delete_backup,
+            commands::dynamodb::ddb_restore_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

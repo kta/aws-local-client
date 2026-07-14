@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use aws_sdk_dynamodb::config::{BehaviorVersion, Credentials, Region};
+use aws_sdk_dynamodb::config::{BehaviorVersion, Credentials, Region, SharedCredentialsProvider};
+use aws_types::sdk_config::SdkConfig;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
@@ -67,7 +68,10 @@ impl ProfileStore {
     }
 }
 
-pub fn make_client(p: &ConnectionProfile) -> aws_sdk_dynamodb::Client {
+/// Build a shared AWS `SdkConfig` (creds + timeout + endpoint + region) from a
+/// connection profile. Service-specific clients are created from this config,
+/// so a new service only needs `aws_sdk_<svc>::Client::new(&make_sdk_config(p))`.
+pub fn make_sdk_config(p: &ConnectionProfile) -> SdkConfig {
     let creds = Credentials::new(
         p.access_key_id.clone(),
         p.secret_access_key.clone(),
@@ -79,18 +83,29 @@ pub fn make_client(p: &ConnectionProfile) -> aws_sdk_dynamodb::Client {
         .connect_timeout(Duration::from_millis(1500))
         .operation_timeout(Duration::from_secs(30))
         .build();
-    let config = aws_sdk_dynamodb::Config::builder()
+    SdkConfig::builder()
         .behavior_version(BehaviorVersion::latest())
-        .endpoint_url(&p.endpoint_url)
+        .endpoint_url(p.endpoint_url.clone())
         .region(Region::new(p.region.clone()))
-        .credentials_provider(creds)
+        .credentials_provider(SharedCredentialsProvider::new(creds))
         .timeout_config(timeouts)
-        .build();
-    aws_sdk_dynamodb::Client::from_conf(config)
+        .build()
+}
+
+pub fn make_client(p: &ConnectionProfile) -> aws_sdk_dynamodb::Client {
+    aws_sdk_dynamodb::Client::new(&make_sdk_config(p))
 }
 
 pub async fn probe(endpoint_url: &str) -> Option<usize> {
-    let creds = Credentials::new("dummy", "dummy", None, None, "probe");
+    let probe_profile = ConnectionProfile {
+        id: "probe".into(),
+        name: "probe".into(),
+        endpoint_url: endpoint_url.to_string(),
+        region: "ap-northeast-1".into(),
+        access_key_id: "dummy".into(),
+        secret_access_key: "dummy".into(),
+        color: None,
+    };
     let timeouts = aws_sdk_dynamodb::config::timeout::TimeoutConfig::builder()
         .connect_timeout(Duration::from_millis(700))
         // Heavier emulators (e.g. localstack:3) can take a couple of seconds to
@@ -98,14 +113,12 @@ pub async fn probe(endpoint_url: &str) -> Option<usize> {
         // tight (dead ports fail fast) but give a responsive port room to reply.
         .operation_timeout(Duration::from_millis(3000))
         .build();
-    let config = aws_sdk_dynamodb::Config::builder()
-        .behavior_version(BehaviorVersion::latest())
-        .endpoint_url(endpoint_url)
-        .region(Region::new("ap-northeast-1"))
-        .credentials_provider(creds)
+    // Reuse the shared config builder, overriding only the probe-specific timeouts.
+    let config = make_sdk_config(&probe_profile)
+        .into_builder()
         .timeout_config(timeouts)
         .build();
-    let client = aws_sdk_dynamodb::Client::from_conf(config);
+    let client = aws_sdk_dynamodb::Client::new(&config);
     let out = client.list_tables().send().await.ok()?;
     Some(out.table_names().len())
 }

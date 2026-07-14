@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { toAppError } from "../../api/client";
+import { Modal } from "../../components/ui";
 import type { DdbItem } from "../../lib/ddbJson";
 import { itemToPlain, plainToItem } from "../../lib/ddbJson";
 
@@ -54,36 +55,25 @@ export function ItemEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div
-        className="flex h-[80vh] w-full max-w-2xl flex-col rounded-lg bg-white p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{initial ? "アイテムの編集" : "アイテムの作成"}</h2>
-          <label className="flex items-center gap-2 text-sm text-gray-600">
-            <input
-              type="checkbox"
-              data-testid="item-ddb-toggle"
-              checked={ddbMode}
-              onChange={toggleMode}
-            />
-            DynamoDB JSON
-          </label>
-        </div>
-        {!ddbMode && (
-          <p className="mb-2 text-xs text-gray-400">
-            通常 JSON モードではセット型(SS/NS/BS)とバイナリ型は表現できません。また JavaScript の安全な整数範囲(2^53)を超える整数は文字列として表示され、そのまま保存すると文字列型になります。N 型を保持したい場合は DynamoDB JSON に切り替えてください。
-          </p>
-        )}
-        <textarea
-          className="flex-1 resize-none rounded border border-gray-300 p-2 font-mono text-sm"
-          data-testid="item-json"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          spellCheck={false}
-        />
-        {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
+    <Modal
+      title={initial ? "アイテムの編集" : "アイテムの作成"}
+      onClose={onClose}
+      maxWidth="2xl"
+      panelClassName="flex h-[80vh] flex-col"
+      titleActions={
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            data-testid="item-ddb-toggle"
+            checked={ddbMode}
+            onChange={toggleMode}
+          />
+          DynamoDB JSON
+        </label>
+      }
+      // Bespoke footer (not <ModalFooter>): keeps the original mt-3 spacing
+      // and gray/blue button styling for pixel parity.
+      footer={
         <div className="mt-3 flex justify-end gap-2">
           <button
             onClick={onClose}
@@ -101,7 +91,21 @@ export function ItemEditorModal({
             {submitting ? "保存中..." : "保存"}
           </button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      {!ddbMode && (
+        <p className="mb-2 text-xs text-gray-400">
+          通常 JSON モードではセット型(SS/NS/BS)とバイナリ型は表現できません。また JavaScript の安全な整数範囲(2^53)を超える整数は文字列として表示され、そのまま保存すると文字列型になります。N 型を保持したい場合は DynamoDB JSON に切り替えてください。
+        </p>
+      )}
+      <textarea
+        className="flex-1 resize-none rounded border border-gray-300 p-2 font-mono text-sm"
+        data-testid="item-json"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        spellCheck={false}
+      />
+      {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
+    </Modal>
   );
 }
