@@ -2,19 +2,12 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { useConnections } from "../state/connections";
 import { serviceForPath } from "../services/registry";
+import { AWS_REGIONS } from "../lib/regions";
 import { SideNav } from "./SideNav";
 
 const CONN_DEFAULT = "#7c4dff";
 
-const COMMON_REGIONS = [
-  "ap-northeast-1",
-  "ap-northeast-3",
-  "us-east-1",
-  "us-east-2",
-  "us-west-2",
-  "eu-west-1",
-  "eu-central-1",
-];
+const COMMON_REGIONS = AWS_REGIONS;
 
 type Crumb = { service?: string; parts: string[] };
 
