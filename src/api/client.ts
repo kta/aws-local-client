@@ -6,6 +6,7 @@ import type {
   CreateTableRequest,
   DetectedEndpoint,
   PageResult,
+  PartiqlResult,
   QueryRequest,
   ScanRequest,
   TableDetail,
@@ -43,5 +44,7 @@ export const api = {
       invoke<void>("ddb_create_table", { profile, req }),
     deleteTable: (profile: ConnectionProfile, tableName: string) =>
       invoke<void>("ddb_delete_table", { profile, tableName }),
+    executeStatement: (profile: ConnectionProfile, statement: string, nextToken?: string) =>
+      invoke<PartiqlResult>("ddb_execute_statement", { profile, statement, nextToken }),
   },
 };

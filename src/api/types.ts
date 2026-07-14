@@ -48,6 +48,11 @@ export type PageResult = {
   scannedCount: number;
 };
 
+export interface PartiqlResult {
+  items: DdbItem[];
+  nextToken?: string;
+}
+
 export type KeyAttr = { name: string; attrType: "S" | "N" | "B" };
 export type GsiSpec = { name: string; pk: KeyAttr; sk?: KeyAttr | null };
 export type CreateTableRequest = {
