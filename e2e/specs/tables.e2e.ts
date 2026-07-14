@@ -117,7 +117,7 @@ describe("tables", () => {
     await expect($(T("index-name-gsi1"))).toBeExisting();
   });
 
-  // R6 — delete from list via name-confirmation prompt.
+  // R6 — delete from list via the name-confirmation modal (formerly window.prompt).
   it("R6: deletes a table from the list (name confirmation)", async () => {
     await gotoTables();
     await createTableViaUI({ name: "r6_list", pk: { name: "id", type: "S" } });

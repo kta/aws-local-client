@@ -375,15 +375,18 @@ export async function waitForTableActive(name: string, timeout = 30000): Promise
   });
 }
 
-/** Delete a table from the list: tick its checkbox, click 削除, confirm via prompt. */
+/**
+ * Delete a table from the list: tick its checkbox, click 削除, then confirm via
+ * the name-typed ConfirmDangerModal (the former window.prompt was replaced by the
+ * shared modal — the confirm button stays disabled until the name is typed).
+ */
 export async function deleteTableFromList(name: string): Promise<void> {
-  await stubDialogs(name); // window.prompt returns the typed table name
   const box = await waitDisplayed(`[aria-label="${name} を選択"]`);
   await box.click();
   await clickT("tables-delete");
-  // The list-delete path gates on a window.prompt that echoes the table name;
-  // verify it actually fired and carried the name (R6 list path).
-  await assertDialogShown("prompt", name);
+  // Confirm stays disabled until the exact table name is typed (R6 list path).
+  await setValueT("tables-delete-input", name);
+  await clickT("tables-delete-confirm");
   await browser.waitUntil(async () => !(await $(T(`table-link-${name}`)).isExisting()), {
     timeout: 20000,
     timeoutMsg: `table ${name} was not removed from the list`,
