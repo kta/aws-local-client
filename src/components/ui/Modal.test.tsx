@@ -44,6 +44,28 @@ describe("Modal", () => {
     );
     expect((container.querySelector(".max-w-2xl") as Element)).toBeInTheDocument();
   });
+
+  it("merges panelClassName onto the panel", () => {
+    const { container } = render(
+      <Modal title="t" onClose={() => {}} panelClassName="flex h-[80vh] flex-col">
+        <div>本文</div>
+      </Modal>,
+    );
+    const panel = container.querySelector(".h-\\[80vh\\]");
+    expect(panel).toBeInTheDocument();
+    expect(panel).toHaveClass("w-full", "rounded-lg", "flex", "flex-col");
+  });
+
+  it("renders titleActions inline with the title", () => {
+    render(
+      <Modal title="タイトル" onClose={() => {}} titleActions={<button>切替</button>}>
+        <div>本文</div>
+      </Modal>,
+    );
+    const heading = screen.getByText("タイトル");
+    const action = screen.getByText("切替");
+    expect(heading.parentElement).toBe(action.parentElement);
+  });
 });
 
 describe("ModalFooter", () => {
@@ -83,5 +105,29 @@ describe("ModalFooter", () => {
       />,
     );
     expect(screen.getByTestId("submit")).toBeDisabled();
+  });
+
+  it("exposes cancelTestId and calls onCancel; default label is キャンセル", () => {
+    const onCancel = vi.fn();
+    render(
+      <ModalFooter onCancel={onCancel} onConfirm={() => {}} confirmLabel="作成" cancelTestId="cancel" />,
+    );
+    const cancel = screen.getByTestId("cancel");
+    expect(cancel).toHaveTextContent("キャンセル");
+    fireEvent.click(cancel);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("honours a custom cancelLabel", () => {
+    render(
+      <ModalFooter
+        onCancel={() => {}}
+        onConfirm={() => {}}
+        confirmLabel="作成"
+        cancelLabel="閉じる"
+        cancelTestId="cancel"
+      />,
+    );
+    expect(screen.getByTestId("cancel")).toHaveTextContent("閉じる");
   });
 });
