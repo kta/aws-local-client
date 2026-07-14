@@ -7,8 +7,6 @@ import { SideNav } from "./SideNav";
 
 const CONN_DEFAULT = "#7c4dff";
 
-const COMMON_REGIONS = AWS_REGIONS;
-
 type Crumb = { service?: string; parts: string[] };
 
 // Non-service (fixed) paths keep a small hand-maintained crumb table.
@@ -34,9 +32,9 @@ export function Layout() {
   const crumb = buildCrumb(location.pathname);
 
   const regionOptions =
-    active && !COMMON_REGIONS.includes(active.region)
-      ? [active.region, ...COMMON_REGIONS]
-      : COMMON_REGIONS;
+    active && !AWS_REGIONS.includes(active.region)
+      ? [active.region, ...AWS_REGIONS]
+      : AWS_REGIONS;
 
   const handleRegionChange = async (region: string) => {
     if (!active) return;

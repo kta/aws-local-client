@@ -388,6 +388,12 @@ function PublishTab({
   const [result, setResult] = useState<string | null>(null);
   const [actionError, setActionError] = useState<AppError | null>(null);
 
+  // Any edit to the form invalidates the previous publish result so a stale
+  // "発行しました" message never lingers next to changed inputs.
+  useEffect(() => {
+    setResult(null);
+  }, [subject, message, groupId, dedupId, attrs]);
+
   // FIFO topics require a MessageGroupId.
   const valid = message.trim().length > 0 && (!topic.fifo || groupId.trim().length > 0);
 
