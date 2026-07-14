@@ -30,6 +30,7 @@ pub fn run() {
     }
 
     builder
+        .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             if cfg!(debug_assertions) && !under_wdio {
                 app.handle().plugin(
@@ -58,6 +59,33 @@ pub fn run() {
             commands::dynamodb::ddb_create_backup,
             commands::dynamodb::ddb_delete_backup,
             commands::dynamodb::ddb_restore_backup,
+            commands::sqs::sqs_list_queues,
+            commands::sqs::sqs_get_queue,
+            commands::sqs::sqs_create_queue,
+            commands::sqs::sqs_delete_queue,
+            commands::sqs::sqs_set_queue_attributes,
+            commands::sqs::sqs_send_message,
+            commands::sqs::sqs_receive_messages,
+            commands::sqs::sqs_delete_message,
+            commands::sqs::sqs_purge_queue,
+            commands::sns::sns_list_topics,
+            commands::sns::sns_create_topic,
+            commands::sns::sns_delete_topic,
+            commands::sns::sns_list_subscriptions,
+            commands::sns::sns_subscribe_sqs,
+            commands::sns::sns_unsubscribe,
+            commands::sns::sns_publish,
+            commands::s3::s3_list_buckets,
+            commands::s3::s3_create_bucket,
+            commands::s3::s3_delete_bucket,
+            commands::s3::s3_list_objects,
+            commands::s3::s3_head_object,
+            commands::s3::s3_put_object,
+            commands::s3::s3_download_object,
+            commands::s3::s3_delete_object,
+            commands::rds::rds_list_instances,
+            commands::rds::rds_create_instance,
+            commands::rds::rds_delete_instance,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

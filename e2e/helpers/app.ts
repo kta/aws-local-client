@@ -607,4 +607,47 @@ export async function changeRegionViaHeader(region: string): Promise<void> {
   await setSelectValue("header-region-select", region);
 }
 
+// --- SQS / SNS / S3 / RDS navigation (R22-R35) -------------------------------
+// Added for the four Phase-2 services. These follow the same hash-router pattern
+// as the DynamoDB gotos above; existing helpers are left untouched.
+
+export async function gotoQueues(): Promise<void> {
+  await navigateHash("#/sqs/queues");
+  await waitDisplayed(T("queues-heading"));
+  await waitDisplayed(T("queues-count"));
+}
+
+export async function gotoQueueDetail(name: string): Promise<void> {
+  await navigateHash(`#/sqs/queues/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("tab-messages"));
+}
+
+export async function gotoTopics(): Promise<void> {
+  await navigateHash("#/sns/topics");
+  await waitDisplayed(T("topics-heading"));
+  await waitDisplayed(T("topics-count"));
+}
+
+export async function gotoTopicDetail(name: string): Promise<void> {
+  await navigateHash(`#/sns/topics/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("tab-subs"));
+}
+
+export async function gotoBuckets(): Promise<void> {
+  await navigateHash("#/s3/buckets");
+  await waitDisplayed(T("buckets-heading"));
+  await waitDisplayed(T("buckets-count"));
+}
+
+export async function gotoBucketBrowser(bucket: string, prefix?: string): Promise<void> {
+  const base = `#/s3/buckets/${encodeURIComponent(bucket)}`;
+  await navigateHash(prefix ? `${base}?prefix=${encodeURIComponent(prefix)}` : base);
+  await waitDisplayed(T("browser-heading"));
+}
+
+export async function gotoInstances(): Promise<void> {
+  await navigateHash("#/rds/instances");
+  await waitDisplayed(T("instances-heading"));
+}
+
 export { $, $$, browser, expect };

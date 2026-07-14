@@ -55,8 +55,8 @@ export function Home() {
         )}
       </div>
       <p className="mt-8 text-[11px] text-[#8a94a6]" data-testid="aws-trademark-note">
-        Amazon Web Services、Amazon DynamoDB、Amazon SQS、Amazon SNS、Amazon S3、Amazon EC2、Amazon
-        EKS は、Amazon.com, Inc. またはその関連会社の商標です。
+        Amazon Web Services、Amazon DynamoDB、Amazon SQS、Amazon SNS、Amazon S3、Amazon RDS、Amazon
+        EC2、Amazon EKS は、Amazon.com, Inc. またはその関連会社の商標です。
       </p>
     </div>
   );

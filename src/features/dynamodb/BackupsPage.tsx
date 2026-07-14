@@ -12,13 +12,9 @@ import {
   PageHeader,
 } from "../../components/ui";
 import { formatBytes, formatDate } from "../../lib/format";
+import { isUnsupportedOperation } from "../../lib/unsupported";
 import { useProfileScopedFetch } from "../../lib/useProfileScopedFetch";
 import { useConnections } from "../../state/connections";
-
-// R21: emulators that do not implement the backup API surface these signatures.
-function isUnsupported(err: AppError): boolean {
-  return /unknown ?operation|not supported/i.test(err.message);
-}
 
 function CreateBackupModal({
   tables,
@@ -167,7 +163,7 @@ export function BackupsPage() {
   // R21: unsupported detection applies to both the initial load and op errors;
   // the "unsupported" banner takes over from the generic error banner.
   const rawError = opError ?? loadError;
-  const unsupported = rawError && isUnsupported(rawError) ? rawError : null;
+  const unsupported = rawError && isUnsupportedOperation(rawError) ? rawError : null;
   const error = rawError && !unsupported ? rawError : null;
 
   const retry = useCallback(async () => {

@@ -1,9 +1,9 @@
 import type { ServiceDefinition } from "./types";
 import { dynamodbService } from "../features/dynamodb/service";
-// 将来: import { sqsService } from "../features/sqs/service";
-import sqsIcon from "../assets/aws/icon-sqs.svg";
-import snsIcon from "../assets/aws/icon-sns.svg";
-import s3Icon from "../assets/aws/icon-s3.svg";
+import { sqsService } from "../features/sqs/service";
+import { snsService } from "../features/sns/service";
+import { s3Service } from "../features/s3/service";
+import { rdsService } from "../features/rds/service";
 import ec2Icon from "../assets/aws/icon-ec2.svg";
 import eksIcon from "../assets/aws/icon-eks.svg";
 
@@ -24,10 +24,10 @@ const comingSoon = (id: string, name: string, icon: string): ServiceDefinition =
 
 export const SERVICES: ServiceDefinition[] = [
   dynamodbService,
-  // sqsService,
-  comingSoon("sqs", "SQS", sqsIcon),
-  comingSoon("sns", "SNS", snsIcon),
-  comingSoon("s3", "S3", s3Icon),
+  sqsService,
+  snsService,
+  s3Service,
+  rdsService,
   comingSoon("ec2", "EC2", ec2Icon),
   comingSoon("eks", "EKS", eksIcon),
 ];
