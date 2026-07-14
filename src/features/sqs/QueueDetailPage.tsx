@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, toAppError } from "../../api/client";
-import type { QueueDetail, SendMessageRequest, SqsMessage } from "../../api/sqs";
+import type { DlqSourceInfo, QueueDetail, QueueTag, SendMessageRequest, SqsMessage } from "../../api/sqs";
 import type { AppError, ConnectionProfile } from "../../api/types";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import { Button, Card, ConfirmDangerModal, ConnectionRequired } from "../../components/ui";
@@ -10,7 +10,7 @@ import { useProfileScopedFetch } from "../../lib/useProfileScopedFetch";
 import { useConnections } from "../../state/connections";
 import { SendMessageModal } from "./SendMessageModal";
 
-type Tab = "messages" | "settings";
+type Tab = "messages" | "settings" | "tags" | "dlq";
 
 const FIELD = "mt-1 w-full rounded border border-gray-300 px-2 py-1";
 const LABEL = "block text-sm";
@@ -147,6 +147,24 @@ export function QueueDetailPage() {
           >
             設定
           </button>
+          <button
+            onClick={() => setTab("tags")}
+            data-testid="tab-tags"
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-[9px] text-[13.5px] font-semibold ${
+              tab === "tags" ? "border-[#0972d3] text-[#0972d3]" : "border-transparent text-[#5f6b7a]"
+            }`}
+          >
+            タグ
+          </button>
+          <button
+            onClick={() => setTab("dlq")}
+            data-testid="tab-dlq"
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-[9px] text-[13.5px] font-semibold ${
+              tab === "dlq" ? "border-[#0972d3] text-[#0972d3]" : "border-transparent text-[#5f6b7a]"
+            }`}
+          >
+            デッドレター
+          </button>
         </div>
 
         {tab === "messages" && (
@@ -248,6 +266,14 @@ export function QueueDetailPage() {
             onSaved={reload}
             onError={setActionError}
           />
+        )}
+
+        {tab === "tags" && detail && active && (
+          <TagsTab profile={active} queueUrl={detail.queueUrl} onError={setActionError} />
+        )}
+
+        {tab === "dlq" && detail && active && (
+          <DlqTab profile={active} queueUrl={detail.queueUrl} onError={setActionError} />
         )}
 
         {sending && detail && (
@@ -388,5 +414,238 @@ function SettingsTab({
           </div>
         </div>
       </Card>
+  );
+}
+
+function TagsTab({
+  profile,
+  queueUrl,
+  onError,
+}: {
+  profile: ConnectionProfile;
+  queueUrl: string;
+  onError: (e: AppError | null) => void;
+}) {
+  const [tags, setTags] = useState<QueueTag[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [newKey, setNewKey] = useState("");
+  const [newValue, setNewValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    onError(null);
+    try {
+      setTags(await api.sqs.listQueueTags(profile, queueUrl));
+    } catch (e) {
+      onError(toAppError(e));
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, queueUrl]);
+
+  const addTag = async () => {
+    const key = newKey.trim();
+    if (!key) return;
+    setSaving(true);
+    onError(null);
+    try {
+      await api.sqs.tagQueue(profile, queueUrl, key, newValue);
+      setAdding(false);
+      setNewKey("");
+      setNewValue("");
+      await load();
+    } catch (e) {
+      onError(toAppError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeTag = async (key: string) => {
+    onError(null);
+    try {
+      await api.sqs.untagQueue(profile, queueUrl, key);
+      await load();
+    } catch (e) {
+      onError(toAppError(e));
+    }
+  };
+
+  return (
+    <Card title="タグ" overflowHidden>
+      <div className="space-y-3 p-4">
+        <div className="flex justify-end">
+          <Button onClick={() => setAdding(true)} data-testid="tag-add" disabled={adding}>
+            タグを追加
+          </Button>
+        </div>
+
+        {adding && (
+          <div className="flex flex-wrap items-end gap-2">
+            <label className={LABEL}>
+              <span className={LABEL_TEXT}>キー</span>
+              <input
+                className={FIELD}
+                data-testid="tag-key-input"
+                value={newKey}
+                onChange={(e) => setNewKey(e.target.value)}
+              />
+            </label>
+            <label className={LABEL}>
+              <span className={LABEL_TEXT}>値</span>
+              <input
+                className={FIELD}
+                data-testid="tag-value-input"
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value)}
+              />
+            </label>
+            <Button variant="primary" onClick={addTag} disabled={saving} data-testid="tag-save">
+              {saving ? "保存中..." : "保存"}
+            </Button>
+          </div>
+        )}
+
+        <table
+          data-testid="tags-table"
+          className="w-full border-collapse [font-variant-numeric:tabular-nums]"
+        >
+          <thead>
+            <tr className="[&>th]:border-b [&>th]:border-[#d9dee3] [&>th]:bg-[color-mix(in_srgb,#fff_60%,#f0f1f3)] [&>th]:px-[14px] [&>th]:py-[9px] [&>th]:text-left [&>th]:text-[12px] [&>th]:font-semibold [&>th]:text-[#5f6b7a]">
+              <th>キー</th>
+              <th>値</th>
+              <th className="w-24" />
+            </tr>
+          </thead>
+          <tbody>
+            {tags.length === 0 && (
+              <tr>
+                <td colSpan={3} className="p-6 text-center text-[#5f6b7a]">
+                  タグがありません。
+                </td>
+              </tr>
+            )}
+            {tags.map((t) => (
+              <tr
+                key={t.key}
+                className="[&>td]:border-b [&>td]:border-[#e9ecef] [&>td]:px-[14px] [&>td]:py-[9px]"
+              >
+                <td className="font-mono text-xs">{t.key}</td>
+                <td className="font-mono text-xs">{t.value}</td>
+                <td>
+                  <button
+                    onClick={() => removeTag(t.key)}
+                    data-testid={`tag-remove-${t.key}`}
+                    className="text-[13px] font-semibold text-[#d13212] hover:underline"
+                  >
+                    削除
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function DlqTab({
+  profile,
+  queueUrl,
+  onError,
+}: {
+  profile: ConnectionProfile;
+  queueUrl: string;
+  onError: (e: AppError | null) => void;
+}) {
+  const [info, setInfo] = useState<DlqSourceInfo | null>(null);
+
+  useEffect(() => {
+    onError(null);
+    api.sqs
+      .listDlqSources(profile, queueUrl)
+      .then(setInfo)
+      .catch((e) => onError(toAppError(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, queueUrl]);
+
+  // Parse the RedrivePolicy JSON into its display fields, tolerating malformed input.
+  const parsed = (() => {
+    if (!info?.redrivePolicy) return null;
+    try {
+      const p = JSON.parse(info.redrivePolicy) as {
+        deadLetterTargetArn?: string;
+        maxReceiveCount?: number | string;
+      };
+      return {
+        arn: p.deadLetterTargetArn ?? "",
+        maxReceiveCount: p.maxReceiveCount,
+      };
+    } catch {
+      return null;
+    }
+  })();
+
+  return (
+    <div className="space-y-4">
+      <Card title="リドライブポリシー" overflowHidden>
+        <div className="space-y-1 p-4 text-[13px]" data-testid="dlq-redrive-policy">
+          {parsed ? (
+            <>
+              <div>
+                <span className={LABEL_TEXT}>デッドレターキュー ARN: </span>
+                <span className="font-mono text-xs">{parsed.arn}</span>
+              </div>
+              <div>
+                <span className={LABEL_TEXT}>最大受信回数: </span>
+                {String(parsed.maxReceiveCount ?? "")}
+              </div>
+            </>
+          ) : (
+            <span className="text-[#5f6b7a]">設定されていません</span>
+          )}
+        </div>
+      </Card>
+
+      <Card title="ソースキュー" overflowHidden>
+        {info && !info.supported ? (
+          <div className="p-4 text-[13px] text-[#5f6b7a]" data-testid="dlq-sources-unsupported">
+            このエミュレータは ListDeadLetterSourceQueues に対応していないため、ソースキューを表示できません。
+          </div>
+        ) : (
+          <table
+            data-testid="dlq-sources-table"
+            className="w-full border-collapse [font-variant-numeric:tabular-nums]"
+          >
+            <thead>
+              <tr className="[&>th]:border-b [&>th]:border-[#d9dee3] [&>th]:bg-[color-mix(in_srgb,#fff_60%,#f0f1f3)] [&>th]:px-[14px] [&>th]:py-[9px] [&>th]:text-left [&>th]:text-[12px] [&>th]:font-semibold [&>th]:text-[#5f6b7a]">
+                <th>キュー名</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(!info || info.sources.length === 0) && (
+                <tr>
+                  <td className="p-6 text-center text-[#5f6b7a]">
+                    このキューを DLQ として使うソースキューはありません。
+                  </td>
+                </tr>
+              )}
+              {info?.sources.map((name) => (
+                <tr
+                  key={name}
+                  className="[&>td]:border-b [&>td]:border-[#e9ecef] [&>td]:px-[14px] [&>td]:py-[9px]"
+                >
+                  <td className="font-mono text-xs">{name}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+    </div>
   );
 }

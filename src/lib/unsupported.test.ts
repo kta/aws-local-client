@@ -10,6 +10,11 @@ describe("isUnsupportedOperation", () => {
         message: "API for service 'rds' not yet implemented or pro feature",
       }),
     ).toBe(true);
+    expect(
+      isUnsupportedOperation({
+        message: "The action ListDeadLetterSourceQueues is not valid for this endpoint",
+      }),
+    ).toBe(true);
   });
 
   it("does not match ordinary errors", () => {
