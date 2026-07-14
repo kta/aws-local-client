@@ -75,6 +75,14 @@ pub fn run() {
             commands::sns::sns_subscribe_sqs,
             commands::sns::sns_unsubscribe,
             commands::sns::sns_publish,
+            commands::s3::s3_list_buckets,
+            commands::s3::s3_create_bucket,
+            commands::s3::s3_delete_bucket,
+            commands::s3::s3_list_objects,
+            commands::s3::s3_head_object,
+            commands::s3::s3_put_object,
+            commands::s3::s3_download_object,
+            commands::s3::s3_delete_object,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
