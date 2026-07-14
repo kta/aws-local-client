@@ -19,9 +19,13 @@ export function keyOf(keys: KeyDef[], item: DdbItem): DdbItem {
   return key;
 }
 
-/** Column order for the results table: key attributes first, then discovered attributes. */
-export function columnsOf(detail: TableDetail, items: DdbItem[], max = 8): string[] {
-  const cols = detail.keys.map((k) => k.name);
+/**
+ * Column order for the results table: key attributes first (when a table detail
+ * is supplied), then discovered attributes. Pass `null` for `detail` when there
+ * is no key priority (e.g. PartiQL results).
+ */
+export function columnsOf(detail: TableDetail | null, items: DdbItem[], max = 8): string[] {
+  const cols = detail ? detail.keys.map((k) => k.name) : [];
   for (const item of items) {
     for (const k of Object.keys(item)) {
       if (!cols.includes(k)) cols.push(k);
