@@ -30,6 +30,7 @@ pub fn run() {
     }
 
     builder
+        .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             if cfg!(debug_assertions) && !under_wdio {
                 app.handle().plugin(
