@@ -27,6 +27,27 @@ export interface ObjectDetail {
   metadata: Record<string, string>;
 }
 
+export interface BucketTag {
+  key: string;
+  value: string;
+}
+
+export interface BucketProperties {
+  versioning: string | null;
+  tags: BucketTag[];
+  corsJson: string | null;
+  policyJson: string | null;
+}
+
+export interface ObjectVersion {
+  key: string;
+  versionId: string;
+  isLatest: boolean;
+  deleteMarker: boolean;
+  size: number | null;
+  lastModified: string | null;
+}
+
 export const s3 = {
   listBuckets: (profile: ConnectionProfile) => invoke<BucketSummary[]>("s3_list_buckets", { profile }),
   createBucket: (profile: ConnectionProfile, name: string) =>
@@ -48,4 +69,29 @@ export const s3 = {
     invoke<void>("s3_download_object", { profile, bucket, key, destPath }),
   deleteObject: (profile: ConnectionProfile, bucket: string, key: string) =>
     invoke<void>("s3_delete_object", { profile, bucket, key }),
+  getBucketProperties: (profile: ConnectionProfile, bucket: string) =>
+    invoke<BucketProperties>("s3_get_bucket_properties", { profile, bucket }),
+  setVersioning: (profile: ConnectionProfile, bucket: string, enabled: boolean) =>
+    invoke<void>("s3_set_versioning", { profile, bucket, enabled }),
+  putBucketTagging: (profile: ConnectionProfile, bucket: string, tags: BucketTag[]) =>
+    invoke<void>("s3_put_bucket_tagging", { profile, bucket, tags }),
+  putBucketCors: (profile: ConnectionProfile, bucket: string, corsJson: string) =>
+    invoke<void>("s3_put_bucket_cors", { profile, bucket, corsJson }),
+  putBucketPolicy: (profile: ConnectionProfile, bucket: string, policyJson: string) =>
+    invoke<void>("s3_put_bucket_policy", { profile, bucket, policyJson }),
+  listObjectVersions: (profile: ConnectionProfile, bucket: string, prefix: string) =>
+    invoke<ObjectVersion[]>("s3_list_object_versions", { profile, bucket, prefix }),
+  downloadObjectVersion: (
+    profile: ConnectionProfile,
+    bucket: string,
+    key: string,
+    versionId: string,
+    destPath: string,
+  ) => invoke<void>("s3_download_object_version", { profile, bucket, key, versionId, destPath }),
+  copyObject: (profile: ConnectionProfile, bucket: string, sourceKey: string, destKey: string) =>
+    invoke<void>("s3_copy_object", { profile, bucket, sourceKey, destKey }),
+  createFolder: (profile: ConnectionProfile, bucket: string, prefix: string) =>
+    invoke<void>("s3_create_folder", { profile, bucket, prefix }),
+  uploadFile: (profile: ConnectionProfile, bucket: string, key: string, srcPath: string) =>
+    invoke<void>("s3_upload_file", { profile, bucket, key, srcPath }),
 };
