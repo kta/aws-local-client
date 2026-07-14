@@ -68,6 +68,13 @@ pub fn run() {
             commands::sqs::sqs_receive_messages,
             commands::sqs::sqs_delete_message,
             commands::sqs::sqs_purge_queue,
+            commands::sns::sns_list_topics,
+            commands::sns::sns_create_topic,
+            commands::sns::sns_delete_topic,
+            commands::sns::sns_list_subscriptions,
+            commands::sns::sns_subscribe_sqs,
+            commands::sns::sns_unsubscribe,
+            commands::sns::sns_publish,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
