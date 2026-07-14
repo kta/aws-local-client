@@ -19,6 +19,10 @@ const profiles: ConnectionProfile[] = [
 const listInstances = vi.fn();
 const createInstance = vi.fn();
 const deleteInstance = vi.fn();
+const stopInstance = vi.fn();
+const startInstance = vi.fn();
+const rebootInstance = vi.fn();
+const modifyInstance = vi.fn();
 
 vi.mock("../../api/client", () => ({
   api: {
@@ -27,6 +31,10 @@ vi.mock("../../api/client", () => ({
       listInstances: (...args: unknown[]) => listInstances(...args),
       createInstance: (...args: unknown[]) => createInstance(...args),
       deleteInstance: (...args: unknown[]) => deleteInstance(...args),
+      stopInstance: (...args: unknown[]) => stopInstance(...args),
+      startInstance: (...args: unknown[]) => startInstance(...args),
+      rebootInstance: (...args: unknown[]) => rebootInstance(...args),
+      modifyInstance: (...args: unknown[]) => modifyInstance(...args),
     },
   },
   toAppError: (e: unknown) => ({ kind: "internal", message: String(e) }),
@@ -59,6 +67,10 @@ describe("InstancesPage list", () => {
     listInstances.mockReset().mockResolvedValue([instance("db-1")]);
     createInstance.mockReset().mockResolvedValue(undefined);
     deleteInstance.mockReset().mockResolvedValue(undefined);
+    stopInstance.mockReset().mockResolvedValue(undefined);
+    startInstance.mockReset().mockResolvedValue(undefined);
+    rebootInstance.mockReset().mockResolvedValue(undefined);
+    modifyInstance.mockReset().mockResolvedValue(undefined);
   });
 
   it("renders instances with endpoint and status", async () => {
@@ -105,6 +117,38 @@ describe("InstancesPage list", () => {
 
     fireEvent.click(confirm);
     await waitFor(() => expect(deleteInstance).toHaveBeenCalledWith(profiles[0], "db-1"));
+  });
+
+  it("R48: stops an instance via the row action", async () => {
+    renderPage();
+    await screen.findByTestId("instance-row-db-1");
+
+    fireEvent.click(screen.getByTestId("instance-stop"));
+    await waitFor(() => expect(stopInstance).toHaveBeenCalledWith(profiles[0], "db-1"));
+  });
+
+  it("R48: starts and reboots an instance via the row actions", async () => {
+    renderPage();
+    await screen.findByTestId("instance-row-db-1");
+
+    fireEvent.click(screen.getByTestId("instance-start"));
+    await waitFor(() => expect(startInstance).toHaveBeenCalledWith(profiles[0], "db-1"));
+
+    fireEvent.click(screen.getByTestId("instance-reboot"));
+    await waitFor(() => expect(rebootInstance).toHaveBeenCalledWith(profiles[0], "db-1"));
+  });
+
+  it("R48: modifies storage and class via the modal, sending only changes", async () => {
+    renderPage();
+    await screen.findByTestId("instance-row-db-1");
+
+    fireEvent.click(screen.getByTestId("instance-modify"));
+    fireEvent.change(screen.getByTestId("m-storage"), { target: { value: "30" } });
+    fireEvent.click(screen.getByTestId("m-save"));
+
+    await waitFor(() =>
+      expect(modifyInstance).toHaveBeenCalledWith(profiles[0], "db-1", { allocatedStorage: 30 }),
+    );
   });
 });
 

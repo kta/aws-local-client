@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, toAppError } from "../../api/client";
-import type { CreateDbInstanceRequest, DbInstanceSummary } from "../../api/rds";
+import type {
+  CreateDbInstanceRequest,
+  DbInstanceSummary,
+  ModifyInstanceRequest,
+} from "../../api/rds";
 import type { AppError } from "../../api/types";
 import { ErrorBanner } from "../../components/ErrorBanner";
 import {
@@ -17,9 +22,11 @@ import { isUnsupportedOperation } from "../../lib/unsupported";
 import { useProfileScopedFetch } from "../../lib/useProfileScopedFetch";
 import { useConnections } from "../../state/connections";
 import { CreateInstanceModal } from "./CreateInstanceModal";
+import { ModifyInstanceModal } from "./ModifyInstanceModal";
 
 export function InstancesPage() {
   const { active } = useConnections();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     data,
     error: loadError,
@@ -30,6 +37,16 @@ export function InstancesPage() {
   const [opError, setOpError] = useState<AppError | null>(null);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [modifying, setModifying] = useState<DbInstanceSummary | null>(null);
+
+  // Dashboard quick action deep-links here with ?create=1 to open the modal.
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setCreating(true);
+      searchParams.delete("create");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // R34: an "unsupported" load error takes over from the generic error banner and
   // hides the create action. R35: a create error that is NOT an unsupported
@@ -48,6 +65,31 @@ export function InstancesPage() {
     try {
       await api.rds.createInstance(active, req);
       setCreating(false);
+      await reload();
+    } catch (e) {
+      setOpError(toAppError(e));
+    }
+  };
+
+  // R48: stop / start / reboot. Failures on emulators that only support describe
+  // (floci) surface as a normal error banner, not the unsupported takeover.
+  const runOp = async (op: (profile: NonNullable<typeof active>) => Promise<void>) => {
+    if (!active) return;
+    setOpError(null);
+    try {
+      await op(active);
+      await reload();
+    } catch (e) {
+      setOpError(toAppError(e));
+    }
+  };
+
+  const modifyInstance = async (req: ModifyInstanceRequest) => {
+    if (!active || !modifying) return;
+    setOpError(null);
+    try {
+      await api.rds.modifyInstance(active, modifying.id, req);
+      setModifying(null);
       await reload();
     } catch (e) {
       setOpError(toAppError(e));
@@ -83,13 +125,43 @@ export function InstancesPage() {
       header: null,
       className: "text-right",
       render: (i) => (
-        <button
-          onClick={() => setDeletingId(i.id)}
-          data-testid="instances-delete"
-          className="text-[13px] font-semibold text-[#d13212] hover:underline"
-        >
-          削除
-        </button>
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={() => runOp((p) => api.rds.stopInstance(p, i.id))}
+            data-testid="instance-stop"
+            className="text-[13px] font-semibold text-[#0972d3] hover:underline"
+          >
+            停止
+          </button>
+          <button
+            onClick={() => runOp((p) => api.rds.startInstance(p, i.id))}
+            data-testid="instance-start"
+            className="text-[13px] font-semibold text-[#0972d3] hover:underline"
+          >
+            起動
+          </button>
+          <button
+            onClick={() => runOp((p) => api.rds.rebootInstance(p, i.id))}
+            data-testid="instance-reboot"
+            className="text-[13px] font-semibold text-[#0972d3] hover:underline"
+          >
+            再起動
+          </button>
+          <button
+            onClick={() => setModifying(i)}
+            data-testid="instance-modify"
+            className="text-[13px] font-semibold text-[#0972d3] hover:underline"
+          >
+            変更
+          </button>
+          <button
+            onClick={() => setDeletingId(i.id)}
+            data-testid="instances-delete"
+            className="text-[13px] font-semibold text-[#d13212] hover:underline"
+          >
+            削除
+          </button>
+        </div>
       ),
     },
   ];
@@ -144,6 +216,14 @@ export function InstancesPage() {
 
         {creating && (
           <CreateInstanceModal onSubmit={createInstance} onClose={() => setCreating(false)} />
+        )}
+
+        {modifying && (
+          <ModifyInstanceModal
+            instance={modifying}
+            onSubmit={modifyInstance}
+            onClose={() => setModifying(null)}
+          />
         )}
 
         {deletingId && (
