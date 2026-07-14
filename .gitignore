@@ -5,3 +5,8 @@ src-tauri/target
 # E2E test artifacts (uploaded by CI on failure; not committed)
 e2e/logs
 e2e/screenshots
+
+# Local Claude Code session data (worktrees, scratch)
+.claude/
+.worktrees/
+.superpowers/

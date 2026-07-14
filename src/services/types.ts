@@ -12,7 +12,7 @@ export interface ServiceDefinition {
   id: string; // "dynamodb"
   name: string; // "DynamoDB"
   description: string; // "NoSQL データベース"
-  icon: string; // import した svg
+  icon?: string; // import した svg(無ければ Home が略称タイルを描画)
   basePath: string; // "/dynamodb"
   enabled: boolean; // false = Home で "coming soon" グレー
   home: string; // Home カードのリンク先(例 "/dynamodb/tables")

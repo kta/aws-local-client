@@ -26,6 +26,12 @@ jobs:
         image: amazon/dynamodb-local
         ports:
           - 8000:8000
+      # ministack serves the non-DynamoDB integration tests (SQS/SNS/S3/RDS);
+      # dynamodb-local only speaks DynamoDB and returns non-XML errors otherwise.
+      ministack:
+        image: ministackorg/ministack
+        ports:
+          - 4566:4566
     steps:
       - uses: actions/checkout@v4
       - name: Install Tauri system dependencies
@@ -51,8 +57,13 @@ jobs:
         working-directory: src-tauri
       - run: cargo test
         working-directory: src-tauri
-      - name: Integration tests against dynamodb-local
-        run: cargo test -- --ignored
+      - name: DynamoDB integration tests against dynamodb-local
+        run: cargo test --test integration_ddb -- --ignored
         working-directory: src-tauri
         env:
           DDB_ENDPOINT: http://localhost:8000
+      - name: SQS/SNS/S3/RDS integration tests against ministack
+        run: cargo test --test integration_sqs --test integration_sns --test integration_s3 --test integration_rds -- --ignored
+        working-directory: src-tauri
+        env:
+          EMU_ENDPOINT: http://localhost:4566

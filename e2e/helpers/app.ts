@@ -607,4 +607,97 @@ export async function changeRegionViaHeader(region: string): Promise<void> {
   await setSelectValue("header-region-select", region);
 }
 
+// --- SQS / SNS / S3 / RDS navigation (R22-R35) -------------------------------
+// Added for the four Phase-2 services. These follow the same hash-router pattern
+// as the DynamoDB gotos above; existing helpers are left untouched.
+
+export async function gotoSqsDashboard(): Promise<void> {
+  await navigateHash("#/sqs");
+  await waitDisplayed(T("sqs-dashboard-heading"));
+}
+
+export async function gotoQueues(): Promise<void> {
+  await navigateHash("#/sqs/queues");
+  await waitDisplayed(T("queues-heading"));
+  await waitDisplayed(T("queues-count"));
+}
+
+export async function gotoQueueDetail(name: string): Promise<void> {
+  await navigateHash(`#/sqs/queues/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("tab-messages"));
+}
+
+/**
+ * Click a button that stays disabled while the page data is still loading
+ * (e.g. queue-send is disabled until the queue detail resolves). Slow runners
+ * (Windows CI) can reach the click before the fetch finishes, so wait for the
+ * enabled state first.
+ */
+export async function clickEnabledT(id: string, timeout = 20000) {
+  const el = await waitDisplayed(T(id), timeout);
+  await browser.waitUntil(async () => el.isEnabled(), {
+    timeout,
+    timeoutMsg: `${id} never became enabled`,
+  });
+  await el.click();
+  return el;
+}
+
+export async function gotoSnsDashboard(): Promise<void> {
+  await navigateHash("#/sns");
+  await waitDisplayed(T("sns-dash-topics"));
+}
+
+export async function gotoSnsSubscriptions(): Promise<void> {
+  await navigateHash("#/sns/subscriptions");
+  await waitDisplayed(T("subscriptions-table"));
+}
+
+export async function gotoTopics(): Promise<void> {
+  await navigateHash("#/sns/topics");
+  await waitDisplayed(T("topics-heading"));
+  await waitDisplayed(T("topics-count"));
+}
+
+export async function gotoTopicDetail(name: string): Promise<void> {
+  await navigateHash(`#/sns/topics/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("tab-subs"));
+}
+
+export async function gotoBuckets(): Promise<void> {
+  await navigateHash("#/s3/buckets");
+  await waitDisplayed(T("buckets-heading"));
+  await waitDisplayed(T("buckets-count"));
+}
+
+export async function gotoBucketBrowser(bucket: string, prefix?: string): Promise<void> {
+  const base = `#/s3/buckets/${encodeURIComponent(bucket)}`;
+  await navigateHash(prefix ? `${base}?prefix=${encodeURIComponent(prefix)}` : base);
+  await waitDisplayed(T("browser-heading"));
+  // In-app navigation reuses the BucketBrowser component, so the tab a previous
+  // test left active (e.g. プロパティ) persists. Reset to the objects tab so the
+  // object list / versions toggle are present for the caller.
+  await clickT("tab-objects");
+}
+
+export async function gotoInstances(): Promise<void> {
+  await navigateHash("#/rds/instances");
+  await waitDisplayed(T("instances-heading"));
+}
+
+export async function gotoRdsDashboard(): Promise<void> {
+  await navigateHash("#/rds");
+  await waitDisplayed(T("rds-dashboard-heading"));
+}
+
+export async function gotoSnapshots(): Promise<void> {
+  await navigateHash("#/rds/snapshots");
+  await waitDisplayed(T("snapshots-heading"));
+}
+
+export async function gotoParameterGroups(): Promise<void> {
+  await navigateHash("#/rds/parameter-groups");
+  await waitDisplayed(T("pgroups-heading"));
+}
+
 export { $, $$, browser, expect };

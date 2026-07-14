@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icon-Architecture/48/Arch_Amazon-RDS_48</title>
+    <defs>
+        <linearGradient x1="0%" y1="100%" x2="100%" y2="0%" id="linearGradient-rds">
+            <stop stop-color="#2E27AD" offset="0%"></stop>
+            <stop stop-color="#527FFF" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Icon-Architecture/48/Arch_Amazon-RDS_48" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect id="Background" fill="url(#linearGradient-rds)" x="0" y="0" width="64" height="64"></rect>
+        <path d="M32,14 C40.837,14 48,16.239 48,19 L48,45 C48,47.761 40.837,50 32,50 C23.163,50 16,47.761 16,45 L16,19 C16,16.239 23.163,14 32,14 Z M46,23.9 C42.9,25.7 37.8,26.8 32,26.8 C26.2,26.8 21.1,25.7 18,23.9 L18,32.1 C21.1,33.9 26.2,35 32,35 C37.8,35 42.9,33.9 46,32.1 L46,23.9 Z M46,37 C42.9,38.8 37.8,39.9 32,39.9 C26.2,39.9 21.1,38.8 18,37 L18,45 C18,46.657 24.268,48 32,48 C39.732,48 46,46.657 46,45 L46,37 Z" id="Cylinder" fill="#FFFFFF"></path>
+        <ellipse id="Top" fill="#FFFFFF" cx="32" cy="19" rx="14" ry="5"></ellipse>
+    </g>
+</svg>

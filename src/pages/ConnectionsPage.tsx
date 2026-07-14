@@ -5,6 +5,7 @@ import type { AppError, ConnectionProfile, DetectedEndpoint } from "../api/types
 import { ErrorBanner } from "../components/ErrorBanner";
 import { Button, Modal, ModalFooter } from "../components/ui";
 import { useConnections } from "../state/connections";
+import { AWS_REGIONS } from "../lib/regions";
 
 const CONN_DEFAULT = "#7c4dff";
 
@@ -239,13 +240,22 @@ export function ConnectionsPage() {
               "text",
               "conn-endpoint",
             )}
-            {field(
-              "リージョン",
-              editing.region,
-              (v) => setEditing({ ...editing, region: v }),
-              "text",
-              "conn-region",
-            )}
+            <label className="block text-[13px]">
+              <span className="text-[#5f6b7a]">リージョン</span>
+              <input
+                type="text"
+                data-testid="conn-region"
+                list="aws-regions"
+                className="mt-1 w-full rounded-lg border border-[#d9dee3] bg-white px-[10px] py-[6px] text-[13px] text-[#16191f] outline-none focus:border-[#0972d3]"
+                value={editing.region}
+                onChange={(e) => setEditing({ ...editing, region: e.target.value })}
+              />
+              <datalist id="aws-regions">
+                {AWS_REGIONS.map((r) => (
+                  <option key={r} value={r} />
+                ))}
+              </datalist>
+            </label>
             {field("Access Key ID", editing.accessKeyId, (v) =>
               setEditing({ ...editing, accessKeyId: v }),
             )}
