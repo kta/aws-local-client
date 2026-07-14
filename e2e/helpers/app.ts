@@ -38,6 +38,21 @@ export async function setValueT(id: string, value: string, timeout = 20000) {
  */
 export async function setSelectValue(id: string, value: string): Promise<void> {
   await waitDisplayed(T(id));
+  // Options may be populated asynchronously (e.g. from listTables); setting a
+  // value before its <option> exists silently leaves the select empty on slow
+  // runners, so wait for the target option to appear first.
+  await browser.waitUntil(
+    async () =>
+      browser.execute(
+        (sel: string, val: string) => {
+          const el = document.querySelector(sel) as HTMLSelectElement | null;
+          return !!el && [...el.options].some((o) => o.value === val);
+        },
+        T(id),
+        value,
+      ),
+    { timeout: 20000, timeoutMsg: `option "${value}" never appeared in ${id}` },
+  );
   await browser.execute(
     (sel: string, val: string) => {
       const el = document.querySelector(sel) as HTMLSelectElement | null;
@@ -57,6 +72,18 @@ export async function setSelectValue(id: string, value: string): Promise<void> {
 /** Like setSelectValue but selects the option whose visible text matches. */
 export async function setSelectByVisibleText(id: string, text: string): Promise<void> {
   await waitDisplayed(T(id));
+  await browser.waitUntil(
+    async () =>
+      browser.execute(
+        (sel: string, txt: string) => {
+          const el = document.querySelector(sel) as HTMLSelectElement | null;
+          return !!el && [...el.options].some((o) => (o.textContent ?? "").trim() === txt);
+        },
+        T(id),
+        text,
+      ),
+    { timeout: 20000, timeoutMsg: `option "${text}" never appeared in ${id}` },
+  );
   await browser.execute(
     (sel: string, txt: string) => {
       const el = document.querySelector(sel) as HTMLSelectElement | null;
