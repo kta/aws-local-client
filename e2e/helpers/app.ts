@@ -671,4 +671,19 @@ export async function gotoInstances(): Promise<void> {
   await waitDisplayed(T("instances-heading"));
 }
 
+export async function gotoRdsDashboard(): Promise<void> {
+  await navigateHash("#/rds");
+  await waitDisplayed(T("rds-dashboard-heading"));
+}
+
+export async function gotoSnapshots(): Promise<void> {
+  await navigateHash("#/rds/snapshots");
+  await waitDisplayed(T("snapshots-heading"));
+}
+
+export async function gotoParameterGroups(): Promise<void> {
+  await navigateHash("#/rds/parameter-groups");
+  await waitDisplayed(T("pgroups-heading"));
+}
+
 export { $, $$, browser, expect };
