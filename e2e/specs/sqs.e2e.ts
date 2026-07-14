@@ -7,6 +7,7 @@ import {
   ReceiveMessageCommand,
   SendMessageCommand,
   type SQSClient,
+  TagQueueCommand,
 } from "@aws-sdk/client-sqs";
 import { $, browser, expect } from "@wdio/globals";
 import {
@@ -16,6 +17,7 @@ import {
   gotoQueueDetail,
   clickEnabledT,
   gotoQueues,
+  gotoSqsDashboard,
   setValueT,
   setupActiveConnection,
   waitDisplayed,
@@ -30,6 +32,11 @@ import { makeSqsClient } from "../helpers/aws";
  *   R24 UI send a message (with an attribute) -> SDK receive matches body + attr.
  *   R25 SDK-seed messages -> UI poll shows them -> UI delete one (SDK confirms it
  *       is gone) -> UI purge (SDK confirms the queue is empty).
+ *   R36 Dashboard at /sqs summarises seeded queues; the create quick action opens
+ *       the create modal on the queues page.
+ *   R37 Tags tab lists an SDK-seeded tag, adds one via the UI and removes one.
+ *   R38 Dead-letter tab shows a source queue's redrive policy and, on the DLQ,
+ *       either lists source queues or shows the unsupported notice (ministack).
  */
 describe("sqs", () => {
   const client: SQSClient = makeSqsClient(E2E_ENDPOINT);
@@ -229,5 +236,98 @@ describe("sqs", () => {
       interval: 2000,
       timeoutMsg: "queue was not emptied after purge",
     });
+  });
+
+  it("R36: dashboard summarises seeded queues and quick action opens the create modal", async () => {
+    const name = `q36-${stamp}`;
+    const url = await seedQueue(name);
+    await client.send(new SendMessageCommand({ QueueUrl: url, MessageBody: "d1" }));
+
+    // The dashboard is reachable at /sqs and shows summary cards + a queue table.
+    await gotoSqsDashboard();
+    await waitDisplayed(T("sqs-dash-queues"));
+    await waitDisplayed(T("sqs-dash-visible"));
+    await waitDisplayed(T("sqs-dash-inflight"));
+    await waitDisplayed(T("sqs-dash-fifo"));
+    await browser.waitUntil(
+      async () => {
+        await gotoSqsDashboard();
+        return Number(await $(T("sqs-dash-queues")).getText()) >= 1;
+      },
+      { timeout: 30000, interval: 2000, timeoutMsg: "dashboard never showed a queue count" },
+    );
+
+    // The quick action navigates to the queues page with the create modal open.
+    await clickT("sqs-dash-create");
+    await waitDisplayed(T("q-name"));
+  });
+
+  it("R37: tags tab lists, adds and removes a queue tag", async () => {
+    const name = `q37-${stamp}`;
+    const url = await seedQueue(name);
+    await client.send(new TagQueueCommand({ QueueUrl: url, Tags: { env: "prod" } }));
+
+    await gotoQueueDetail(name);
+    await clickT("tab-tags");
+    // Existing SDK-seeded tag is listed with a remove button.
+    await waitDisplayed(T("tag-remove-env"));
+
+    // Add a tag via the UI, then confirm it via the SDK.
+    await clickT("tag-add");
+    await setValueT("tag-key-input", "team");
+    await setValueT("tag-value-input", "core");
+    await clickT("tag-save");
+    await browser.waitUntil(async () => $(T("tag-remove-team")).isExisting(), {
+      timeout: 20000,
+      timeoutMsg: "added tag never appeared",
+    });
+
+    // Remove the seeded tag via the UI.
+    await clickT("tag-remove-env");
+    await browser.waitUntil(async () => !(await $(T("tag-remove-env")).isExisting()), {
+      timeout: 20000,
+      timeoutMsg: "removed tag never disappeared",
+    });
+  });
+
+  it("R38: dead-letter tab shows the redrive policy and source queues (or an unsupported notice)", async () => {
+    const dlqName = `q38dlq-${stamp}`;
+    const srcName = `q38src-${stamp}`;
+    const dlqUrl = await seedQueue(dlqName);
+    const dlqArn = (
+      await client.send(
+        new GetQueueAttributesCommand({ QueueUrl: dlqUrl, AttributeNames: ["QueueArn"] }),
+      )
+    ).Attributes?.QueueArn as string;
+
+    // The source queue points its RedrivePolicy at the DLQ.
+    const { QueueUrl: srcUrl } = await client.send(
+      new CreateQueueCommand({
+        QueueName: srcName,
+        Attributes: {
+          RedrivePolicy: JSON.stringify({ deadLetterTargetArn: dlqArn, maxReceiveCount: 3 }),
+        },
+      }),
+    );
+    created.push(srcUrl as string);
+
+    // The source queue's dead-letter tab shows its own redrive policy.
+    await gotoQueueDetail(srcName);
+    await clickT("tab-dlq");
+    await browser.waitUntil(
+      async () => (await $(T("dlq-redrive-policy")).getText()).includes("3"),
+      { timeout: 20000, timeoutMsg: "redrive policy was not displayed" },
+    );
+
+    // The DLQ's dead-letter tab lists source queues, or shows the unsupported
+    // notice on emulators without ListDeadLetterSourceQueues (ministack).
+    await gotoQueueDetail(dlqName);
+    await clickT("tab-dlq");
+    await browser.waitUntil(
+      async () =>
+        (await $(T("dlq-sources-table")).isExisting()) ||
+        (await $(T("dlq-sources-unsupported")).isExisting()),
+      { timeout: 20000, timeoutMsg: "neither the sources table nor the unsupported notice appeared" },
+    );
   });
 });

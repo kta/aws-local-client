@@ -611,6 +611,11 @@ export async function changeRegionViaHeader(region: string): Promise<void> {
 // Added for the four Phase-2 services. These follow the same hash-router pattern
 // as the DynamoDB gotos above; existing helpers are left untouched.
 
+export async function gotoSqsDashboard(): Promise<void> {
+  await navigateHash("#/sqs");
+  await waitDisplayed(T("sqs-dashboard-heading"));
+}
+
 export async function gotoQueues(): Promise<void> {
   await navigateHash("#/sqs/queues");
   await waitDisplayed(T("queues-heading"));
