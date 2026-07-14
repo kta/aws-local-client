@@ -286,7 +286,7 @@ async fn upload_file_multipart_9mb_round_trips_size() {
 
     // 9 MiB temp file -> crosses the 8 MiB threshold into multipart (2 parts).
     let size: usize = 9 * 1024 * 1024;
-    let src = std::path::PathBuf::from("/private/tmp").join("x3-upload-9mb.bin");
+    let src = std::env::temp_dir().join("x3-upload-9mb.bin");
     std::fs::write(&src, vec![0xabu8; size]).unwrap();
     let src_str = src.to_string_lossy().to_string();
 
