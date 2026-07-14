@@ -49,6 +49,11 @@ pub fn run() {
             ddb::ddb_delete_item,
             ddb::ddb_create_table,
             ddb::ddb_delete_table,
+            ddb::ddb_execute_statement,
+            ddb::ddb_list_backups,
+            ddb::ddb_create_backup,
+            ddb::ddb_delete_backup,
+            ddb::ddb_restore_backup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

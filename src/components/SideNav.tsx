@@ -1,12 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 
 const ITEM_BASE = "block border-l-[3px] px-[18px] py-[7px] text-[13.5px] no-underline";
-const SOON = `${ITEM_BASE} cursor-not-allowed border-transparent text-[#5f6b7a] opacity-50`;
 
 export function SideNav() {
   const { pathname } = useLocation();
+  const dashboardActive = pathname === "/dynamodb";
   const tablesActive = pathname.startsWith("/dynamodb/tables");
   const exploreActive = pathname.startsWith("/dynamodb/explore");
+  const partiqlActive = pathname.startsWith("/dynamodb/partiql");
+  const backupsActive = pathname.startsWith("/dynamodb/backups");
 
   const itemClass = (active: boolean) =>
     active
@@ -18,9 +20,9 @@ export function SideNav() {
       <h2 className="mb-[6px] border-b border-[#e9ecef] px-[18px] pb-[10px] text-[15px] font-bold">
         DynamoDB
       </h2>
-      <span className={SOON} aria-disabled="true">
+      <Link to="/dynamodb" data-testid="nav-dashboard" className={itemClass(dashboardActive)}>
         ダッシュボード
-      </span>
+      </Link>
       <Link to="/dynamodb/tables" data-testid="nav-tables" className={itemClass(tablesActive)}>
         テーブル
       </Link>
@@ -28,12 +30,12 @@ export function SideNav() {
         項目を探索
       </Link>
       <div className="my-2 h-px bg-[#e9ecef]" />
-      <span className={SOON} aria-disabled="true">
+      <Link to="/dynamodb/partiql" data-testid="nav-partiql" className={itemClass(partiqlActive)}>
         PartiQL エディタ
-      </span>
-      <span className={SOON} aria-disabled="true">
+      </Link>
+      <Link to="/dynamodb/backups" data-testid="nav-backups" className={itemClass(backupsActive)}>
         バックアップ
-      </span>
+      </Link>
       <div className="my-2 h-px bg-[#e9ecef]" />
       <Link to="/" className={`${ITEM_BASE} border-transparent text-[#16191f] hover:bg-[#0972d30f]`}>
         ← サービス一覧へ

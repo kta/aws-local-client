@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, toAppError } from "../../api/client";
 import type { AppError, CreateTableRequest, KeyDef, TableDetail } from "../../api/types";
 import { ErrorBanner } from "../../components/ErrorBanner";
@@ -48,6 +48,18 @@ export function TablesPage() {
   const [error, setError] = useState<AppError | null>(null);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Open the create-table modal automatically when navigated here with ?create=1
+  // (e.g. from the dashboard quick action), then clear the flag from the URL.
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setCreating(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("create");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const load = useCallback(async () => {
     if (!active) return;
