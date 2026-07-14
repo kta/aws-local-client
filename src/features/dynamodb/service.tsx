@@ -1,5 +1,4 @@
 import type { ServiceDefinition } from "../../services/types";
-import ddbIcon from "../../assets/aws/icon-ddb.svg";
 import { BackupsPage } from "./BackupsPage";
 import { DashboardPage } from "./DashboardPage";
 import { ExplorePage } from "./ExplorePage";
@@ -11,7 +10,6 @@ export const dynamodbService: ServiceDefinition = {
   id: "dynamodb",
   name: "DynamoDB",
   description: "NoSQL データベース",
-  icon: ddbIcon,
   basePath: "/dynamodb",
   enabled: true,
   home: "/dynamodb/tables",

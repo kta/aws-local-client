@@ -80,6 +80,12 @@ export function BucketBrowserPage() {
     setShowVersions(false);
   }, [bucket, prefix]);
 
+  // Switching to a different bucket returns to the objects tab (the properties
+  // tab is bucket-scoped, so a stale bucket's props should not linger).
+  useEffect(() => {
+    setTab("objects");
+  }, [bucket]);
+
   const prefixes = [...(firstPage?.prefixes ?? []), ...morePages.flatMap((p) => p.prefixes)];
   const objects = [...(firstPage?.objects ?? []), ...morePages.flatMap((p) => p.objects)];
   const nextToken =

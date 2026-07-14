@@ -1,6 +1,5 @@
 import { Navigate } from "react-router-dom";
 import type { ServiceDefinition } from "../../services/types";
-import s3Icon from "../../assets/aws/icon-s3.svg";
 import { BucketBrowserPage } from "./BucketBrowserPage";
 import { BucketsPage } from "./BucketsPage";
 
@@ -8,7 +7,6 @@ export const s3Service: ServiceDefinition = {
   id: "s3",
   name: "S3",
   description: "オブジェクトストレージ",
-  icon: s3Icon,
   basePath: "/s3",
   enabled: true,
   home: "/s3/buckets",

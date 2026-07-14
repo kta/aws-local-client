@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import type { ConnectionProfile } from "../../api/types";
@@ -321,6 +321,38 @@ describe("BucketBrowserPage", () => {
     await waitFor(() =>
       expect(listObjects).toHaveBeenLastCalledWith(profiles[0], "mybucket", "", "tok"),
     );
+  });
+
+  it("resets to the objects tab when switching to another bucket", async () => {
+    function Nav() {
+      const navigate = useNavigate();
+      return (
+        <button data-testid="go-other-bucket" onClick={() => navigate("/s3/buckets/other")}>
+          go
+        </button>
+      );
+    }
+    render(
+      <MemoryRouter initialEntries={["/s3/buckets/mybucket"]}>
+        <ConnectionsProvider>
+          <Nav />
+          <Routes>
+            <Route path="/s3/buckets/:bucket" element={<BucketBrowserPage />} />
+          </Routes>
+        </ConnectionsProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId("object-row-root.txt");
+
+    // Move to the properties tab (the objects listing is then hidden).
+    fireEvent.click(screen.getByTestId("tab-props"));
+    expect(await screen.findByTestId("props-versioning-status")).toBeInTheDocument();
+    expect(screen.queryByTestId("object-row-root.txt")).not.toBeInTheDocument();
+
+    // Switching buckets snaps back to the objects tab.
+    fireEvent.click(screen.getByTestId("go-other-bucket"));
+    expect(await screen.findByTestId("object-row-root.txt")).toBeInTheDocument();
+    expect(screen.queryByTestId("props-versioning-status")).not.toBeInTheDocument();
   });
 
   describe("properties tab", () => {

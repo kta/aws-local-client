@@ -199,6 +199,21 @@ describe("TopicDetailPage", () => {
     expect(await screen.findByTestId("publish-result")).toHaveTextContent("msg-123");
   });
 
+  it("clears the previous publish result when an input changes", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-publish"));
+
+    fireEvent.change(await screen.findByTestId("pub-message"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByTestId("pub-save"));
+    expect(await screen.findByTestId("publish-result")).toHaveTextContent("msg-123");
+
+    // Editing any field discards the stale "発行しました" message.
+    fireEvent.change(screen.getByTestId("pub-message"), { target: { value: "hello world" } });
+    await waitFor(() =>
+      expect(screen.queryByTestId("publish-result")).not.toBeInTheDocument(),
+    );
+  });
+
   it("publishes with message attributes, excluding rows without a name", async () => {
     renderPage();
     fireEvent.click(await screen.findByTestId("tab-publish"));

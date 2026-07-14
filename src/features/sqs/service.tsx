@@ -1,5 +1,4 @@
 import type { ServiceDefinition } from "../../services/types";
-import sqsIcon from "../../assets/aws/icon-sqs.svg";
 import { DashboardPage } from "./DashboardPage";
 import { QueueDetailPage } from "./QueueDetailPage";
 import { QueuesPage } from "./QueuesPage";
@@ -8,7 +7,6 @@ export const sqsService: ServiceDefinition = {
   id: "sqs",
   name: "SQS",
   description: "メッセージキュー",
-  icon: sqsIcon,
   basePath: "/sqs",
   enabled: true,
   home: "/sqs",
@@ -27,6 +25,7 @@ export const sqsService: ServiceDefinition = {
       return ["キュー", name];
     }
     if (pathname.startsWith("/sqs/queues")) return ["キュー"];
+    if (pathname === "/sqs") return ["ダッシュボード"];
     return null;
   },
 };
