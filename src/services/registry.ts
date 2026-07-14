@@ -3,6 +3,7 @@ import { dynamodbService } from "../features/dynamodb/service";
 import { sqsService } from "../features/sqs/service";
 import { snsService } from "../features/sns/service";
 import { s3Service } from "../features/s3/service";
+import { rdsService } from "../features/rds/service";
 import ec2Icon from "../assets/aws/icon-ec2.svg";
 import eksIcon from "../assets/aws/icon-eks.svg";
 
@@ -26,6 +27,7 @@ export const SERVICES: ServiceDefinition[] = [
   sqsService,
   snsService,
   s3Service,
+  rdsService,
   comingSoon("ec2", "EC2", ec2Icon),
   comingSoon("eks", "EKS", eksIcon),
 ];
