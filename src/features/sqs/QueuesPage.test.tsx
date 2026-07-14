@@ -85,6 +85,9 @@ describe("QueuesPage", () => {
     expect(screen.getByTestId("queue-link-events.fifo")).toBeInTheDocument();
     expect(screen.getByText("Standard")).toBeInTheDocument();
     expect(screen.getByText("FIFO")).toBeInTheDocument();
+    // Per-row message-count cell (asserted by testid so E2E/unit share the contract).
+    expect(screen.getByTestId("queue-msgs-orders")).toHaveTextContent("3");
+    expect(screen.getByTestId("queue-msgs-events.fifo")).toHaveTextContent("0");
   });
 
   it("creates a queue and reloads the list", async () => {

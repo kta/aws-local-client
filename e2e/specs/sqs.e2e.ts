@@ -47,8 +47,6 @@ describe("sqs", () => {
     return QueueUrl as string;
   }
 
-  const queueRow = (name: string) => `//tr[.//a[@data-testid="queue-link-${name}"]]`;
-
   before(async () => {
     await setupActiveConnection({
       name: "sqs-conn",
@@ -80,14 +78,17 @@ describe("sqs", () => {
     await waitDisplayed(T(`queue-link-${q2}`));
 
     // The approximate message count is eventually consistent; reload the list
-    // until the seeded queue reports its two messages.
+    // until the count CELL of the seeded queue shows exactly "2". Asserting the
+    // dedicated cell (not the whole row) avoids matching digits in the queue name.
     await browser.waitUntil(
       async () => {
         await gotoQueues();
-        return (await $(queueRow(q1)).getText()).includes("2");
+        return (await $(T(`queue-msgs-${q1}`)).getText()) === "2";
       },
-      { timeout: 30000, interval: 2000, timeoutMsg: `queue ${q1} never showed 2 messages` },
+      { timeout: 30000, interval: 2000, timeoutMsg: `queue ${q1} never showed count 2` },
     );
+    // The message-free queue reports zero.
+    expect(await $(T(`queue-msgs-${q2}`)).getText()).toBe("0");
   });
 
   it("R23: UI create -> SDK verify attrs, UI edit -> SDK verify, UI delete", async () => {

@@ -81,7 +81,9 @@ export function QueuesPage() {
     {
       key: "messages",
       header: "メッセージ数(概算)",
-      render: (q) => q.approximateMessages.toLocaleString(),
+      render: (q) => (
+        <span data-testid={`queue-msgs-${q.name}`}>{q.approximateMessages.toLocaleString()}</span>
+      ),
     },
     {
       key: "notVisible",
