@@ -9,3 +9,4 @@ e2e/screenshots
 # Local Claude Code session data (worktrees, scratch)
 .claude/
 .worktrees/
+.superpowers/
