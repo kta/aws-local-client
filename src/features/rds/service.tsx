@@ -1,5 +1,4 @@
 import type { ServiceDefinition } from "../../services/types";
-import rdsIcon from "../../assets/aws/icon-rds.svg";
 import { DashboardPage } from "./DashboardPage";
 import { InstancesPage } from "./InstancesPage";
 import { ParameterGroupsPage } from "./ParameterGroupsPage";
@@ -9,7 +8,6 @@ export const rdsService: ServiceDefinition = {
   id: "rds",
   name: "RDS",
   description: "リレーショナルデータベース",
-  icon: rdsIcon,
   basePath: "/rds",
   enabled: true,
   home: "/rds",

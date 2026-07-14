@@ -1,5 +1,4 @@
 import type { ServiceDefinition } from "../../services/types";
-import snsIcon from "../../assets/aws/icon-sns.svg";
 import { DashboardPage } from "./DashboardPage";
 import { SubscriptionsPage } from "./SubscriptionsPage";
 import { TopicDetailPage } from "./TopicDetailPage";
@@ -9,7 +8,6 @@ export const snsService: ServiceDefinition = {
   id: "sns",
   name: "SNS",
   description: "通知トピック",
-  icon: snsIcon,
   basePath: "/sns",
   enabled: true,
   home: "/sns",
@@ -31,6 +29,7 @@ export const snsService: ServiceDefinition = {
     }
     if (pathname.startsWith("/sns/topics")) return ["トピック"];
     if (pathname.startsWith("/sns/subscriptions")) return ["サブスクリプション"];
+    if (pathname === "/sns") return ["ダッシュボード"];
     return null;
   },
 };
