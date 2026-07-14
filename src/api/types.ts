@@ -62,4 +62,13 @@ export type CreateTableRequest = {
   gsis: GsiSpec[];
 };
 
+export interface BackupSummary {
+  backupArn: string;
+  backupName: string;
+  tableName: string;
+  status: string;
+  sizeBytes?: number;
+  createdAt?: string; // RFC3339
+}
+
 export type AppError = { kind: string; message: string };
