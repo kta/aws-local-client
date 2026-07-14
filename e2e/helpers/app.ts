@@ -622,6 +622,22 @@ export async function gotoQueueDetail(name: string): Promise<void> {
   await waitDisplayed(T("tab-messages"));
 }
 
+/**
+ * Click a button that stays disabled while the page data is still loading
+ * (e.g. queue-send is disabled until the queue detail resolves). Slow runners
+ * (Windows CI) can reach the click before the fetch finishes, so wait for the
+ * enabled state first.
+ */
+export async function clickEnabledT(id: string, timeout = 20000) {
+  const el = await waitDisplayed(T(id), timeout);
+  await browser.waitUntil(async () => el.isEnabled(), {
+    timeout,
+    timeoutMsg: `${id} never became enabled`,
+  });
+  await el.click();
+  return el;
+}
+
 export async function gotoTopics(): Promise<void> {
   await navigateHash("#/sns/topics");
   await waitDisplayed(T("topics-heading"));

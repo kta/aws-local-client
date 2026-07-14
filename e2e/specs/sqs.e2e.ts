@@ -14,6 +14,7 @@ import {
   T,
   clickT,
   gotoQueueDetail,
+  clickEnabledT,
   gotoQueues,
   setValueT,
   setupActiveConnection,
@@ -144,7 +145,7 @@ describe("sqs", () => {
     const url = await seedQueue(name);
 
     await gotoQueueDetail(name);
-    await clickT("queue-send");
+    await clickEnabledT("queue-send");
     await setValueT("sm-body", "hello-from-ui");
     await clickT("sm-add-attr");
     await setValueT("sm-attr-name-0", "source");
