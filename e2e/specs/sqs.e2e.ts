@@ -252,7 +252,9 @@ describe("sqs", () => {
     await browser.waitUntil(
       async () => {
         await gotoSqsDashboard();
-        return Number(await $(T("sqs-dash-queues")).getText()) >= 1;
+        // The card text is "キュー数\n<n>"; strip the label to read the count.
+        const count = Number((await $(T("sqs-dash-queues")).getText()).replace(/[^\d]/g, ""));
+        return count >= 1;
       },
       { timeout: 30000, interval: 2000, timeoutMsg: "dashboard never showed a queue count" },
     );
