@@ -123,6 +123,157 @@ async fn full_lifecycle_create_send_receive_delete_purge_attrs() {
 
 #[tokio::test]
 #[ignore]
+async fn tag_lifecycle_list_add_remove() {
+    let client = client();
+    let name = "x1_sqs_tags";
+
+    if let Ok(queues) = list_queues(&client).await {
+        if let Some(q) = queues.iter().find(|q| q.name == name) {
+            let _ = delete_queue(&client, &q.queue_url).await;
+        }
+    }
+
+    create_queue(
+        &client,
+        &CreateQueueRequest {
+            name: name.into(),
+            fifo: false,
+            visibility_timeout: None,
+            retention_period: None,
+            delay_seconds: None,
+            redrive_policy: None,
+        },
+    )
+    .await
+    .unwrap();
+
+    let url = list_queues(&client)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|q| q.name == name)
+        .expect("created queue should be listed")
+        .queue_url;
+
+    // Newly created queue has no tags.
+    let tags = list_queue_tags(&client, &url).await.unwrap();
+    assert!(tags.iter().all(|t| t.key != "env"));
+
+    // Add a tag, then confirm it is listed.
+    tag_queue(&client, &url, "env", "prod").await.unwrap();
+    let tags = list_queue_tags(&client, &url).await.unwrap();
+    let env = tags
+        .iter()
+        .find(|t| t.key == "env")
+        .expect("env tag present");
+    assert_eq!(env.value, "prod");
+
+    // Remove the tag, then confirm it is gone.
+    untag_queue(&client, &url, "env").await.unwrap();
+    let tags = list_queue_tags(&client, &url).await.unwrap();
+    assert!(tags.iter().all(|t| t.key != "env"));
+
+    delete_queue(&client, &url).await.unwrap();
+}
+
+#[tokio::test]
+#[ignore]
+async fn dlq_sources_lists_or_reports_unsupported() {
+    let client = client();
+    let dlq_name = "x1_sqs_dlq";
+    let src_name = "x1_sqs_dlq_src";
+
+    // cleanup from a previous run
+    if let Ok(queues) = list_queues(&client).await {
+        for n in [src_name, dlq_name] {
+            if let Some(q) = queues.iter().find(|q| q.name == n) {
+                let _ = delete_queue(&client, &q.queue_url).await;
+            }
+        }
+    }
+
+    // Create the dead-letter target queue first.
+    create_queue(
+        &client,
+        &CreateQueueRequest {
+            name: dlq_name.into(),
+            fifo: false,
+            visibility_timeout: None,
+            retention_period: None,
+            delay_seconds: None,
+            redrive_policy: None,
+        },
+    )
+    .await
+    .unwrap();
+    let dlq = get_queue(
+        &client,
+        &list_queues(&client)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|q| q.name == dlq_name)
+            .unwrap()
+            .queue_url,
+    )
+    .await
+    .unwrap();
+
+    // Create a source queue whose RedrivePolicy targets the DLQ's ARN.
+    let redrive = format!(
+        "{{\"deadLetterTargetArn\":\"{}\",\"maxReceiveCount\":3}}",
+        dlq.arn
+    );
+    create_queue(
+        &client,
+        &CreateQueueRequest {
+            name: src_name.into(),
+            fifo: false,
+            visibility_timeout: None,
+            retention_period: None,
+            delay_seconds: None,
+            redrive_policy: Some(redrive),
+        },
+    )
+    .await
+    .unwrap();
+
+    // Query the DLQ's source queues. On emulators without
+    // ListDeadLetterSourceQueues (ministack) this returns supported:false;
+    // otherwise the source queue must appear.
+    let info = list_dlq_sources(&client, &dlq.queue_url).await.unwrap();
+    if info.supported {
+        assert!(
+            info.sources.iter().any(|s| s == src_name),
+            "source queue should be listed as a DLQ source, got {:?}",
+            info.sources
+        );
+    } else {
+        assert!(info.sources.is_empty());
+    }
+
+    // The source queue reports its own RedrivePolicy.
+    let src = get_queue(
+        &client,
+        &list_queues(&client)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|q| q.name == src_name)
+            .unwrap()
+            .queue_url,
+    )
+    .await
+    .unwrap();
+    let src_info = list_dlq_sources(&client, &src.queue_url).await.unwrap();
+    assert!(src_info.redrive_policy.is_some());
+
+    delete_queue(&client, &src.queue_url).await.unwrap();
+    delete_queue(&client, &dlq.queue_url).await.unwrap();
+}
+
+#[tokio::test]
+#[ignore]
 async fn fifo_create_and_send_or_skip() {
     let client = client();
     let name = "t1_sqs_fifo";
