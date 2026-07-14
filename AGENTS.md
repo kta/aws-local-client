@@ -98,5 +98,5 @@ Three levels:
   (default `http://localhost:8000`).
 - E2E: full-app WebDriver suite against a live emulator via `E2E_ENDPOINT`
   (default `http://localhost:4566`). Traceability rule: `e2e/SPEC-COVERAGE.md` maps every
-  requirement id (R1..R21) to at least one test; when a spec requirement changes, update the
+  requirement id (R1..R35) to at least one test; when a spec requirement changes, update the
   spec in `docs/superpowers/specs/` AND the coverage table in the same change.
