@@ -40,7 +40,12 @@ where
                 .map(String::from)
                 .unwrap_or_else(|| format!("{:?}", se.err()));
             match code {
-                "ResourceNotFoundException" => AppError::NotFound(msg),
+                // SQS reports a missing queue as QueueDoesNotExist (AWS JSON
+                // protocol) or AWS.SimpleQueueService.NonExistentQueue (query
+                // protocol, used by some emulators).
+                "ResourceNotFoundException"
+                | "QueueDoesNotExist"
+                | "AWS.SimpleQueueService.NonExistentQueue" => AppError::NotFound(msg),
                 "ValidationException"
                 | "ConditionalCheckFailedException"
                 | "ResourceInUseException" => AppError::Validation(msg),
@@ -79,6 +84,21 @@ mod tests {
     fn service_error_resource_not_found_maps_to_not_found() {
         let err = service_error("ResourceNotFoundException", "no such table");
         assert_eq!(map_sdk_err(err), AppError::NotFound("no such table".into()));
+    }
+
+    #[test]
+    fn service_error_sqs_missing_queue_codes_map_to_not_found() {
+        for code in [
+            "QueueDoesNotExist",
+            "AWS.SimpleQueueService.NonExistentQueue",
+        ] {
+            let err = service_error(code, "no such queue");
+            assert_eq!(
+                map_sdk_err(err),
+                AppError::NotFound("no such queue".into()),
+                "code {code} should map to NotFound"
+            );
+        }
     }
 
     #[test]

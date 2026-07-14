@@ -160,10 +160,12 @@ pub async fn list_queues(client: &Client) -> Result<Vec<QueueSummary>, AppError>
     for url in out.queue_urls() {
         // Queue counts are small; a sequential GetQueueAttributes per queue is fine.
         // A queue can be deleted between ListQueues and this per-queue lookup
-        // (NonExistentQueue); skip it rather than failing the whole listing.
+        // (NonExistentQueue -> AppError::NotFound); skip only that case rather
+        // than failing the whole listing, and propagate every other error.
         let attrs = match get_attributes(client, url).await {
             Ok(a) => a,
-            Err(_) => continue,
+            Err(AppError::NotFound(_)) => continue,
+            Err(e) => return Err(e),
         };
         summaries.push(QueueSummary {
             queue_url: url.clone(),
