@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useConnections } from "../state/connections";
 import { SERVICES } from "../services/registry";
@@ -27,8 +28,14 @@ function Icon({ src, name }: { src?: string; name: string }) {
 
 export function Home() {
   const { active } = useConnections();
+  const [query, setQuery] = useState("");
   // Enabled services first; keep the registry order within each group.
-  const services = [...SERVICES].sort((a, b) => Number(b.enabled) - Number(a.enabled));
+  const sorted = [...SERVICES].sort((a, b) => Number(b.enabled) - Number(a.enabled));
+  // Case-insensitive substring match on service name and id.
+  const q = query.trim().toLowerCase();
+  const services = q
+    ? sorted.filter((s) => s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q))
+    : sorted;
   return (
     <div className="p-[22px] px-6 pb-[30px]">
       <div className="mb-4 flex items-center gap-3">
@@ -39,6 +46,21 @@ export function Home() {
           接続: <b className="text-[#16191f]">{active?.name ?? "未選択"}</b>
         </span>
       </div>
+      <div className="mb-4">
+        <input
+          type="search"
+          data-testid="service-search"
+          placeholder="サービスを検索"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full max-w-[360px] rounded-lg border border-[#d9dee3] bg-white px-[12px] py-[7px] text-[13px] text-[#16191f] outline-none focus:border-[#0972d3]"
+        />
+      </div>
+      {services.length === 0 && (
+        <p className="text-[13px] text-[#5f6b7a]" data-testid="service-search-empty">
+          該当するサービスがありません
+        </p>
+      )}
       <div className="grid gap-[14px] [grid-template-columns:repeat(auto-fill,minmax(210px,1fr))]">
         {services.map((s) =>
           s.enabled ? (
