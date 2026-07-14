@@ -106,6 +106,18 @@ pub fn run() {
             commands::rds::rds_list_instances,
             commands::rds::rds_create_instance,
             commands::rds::rds_delete_instance,
+            commands::rds::rds_stop_instance,
+            commands::rds::rds_start_instance,
+            commands::rds::rds_reboot_instance,
+            commands::rds::rds_modify_instance,
+            commands::rds::rds_list_snapshots,
+            commands::rds::rds_create_snapshot,
+            commands::rds::rds_restore_snapshot,
+            commands::rds::rds_delete_snapshot,
+            commands::rds::rds_list_parameter_groups,
+            commands::rds::rds_create_parameter_group,
+            commands::rds::rds_delete_parameter_group,
+            commands::rds::rds_list_parameters,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
