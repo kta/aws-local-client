@@ -104,8 +104,8 @@ EMU_PORT=4567 scripts/emulator.sh stop localstack
 | `ministack` | docker | `ministackorg/ministack` |
 | `ministack-pip` | pip(mac/win CI 用) | PyPI `ministack` |
 
-E2E は仕様要件 **R1〜R35 を 100% カバー**する。要件 ID と検証テストの対応(トレーサビリティ)は
-[`e2e/SPEC-COVERAGE.md`](e2e/SPEC-COVERAGE.md) にまとめており、全 35 行に最低 1 テストが対応している。
+E2E は仕様要件 **R1〜R50 を 100% カバー**する。要件 ID と検証テストの対応(トレーサビリティ)は
+[`e2e/SPEC-COVERAGE.md`](e2e/SPEC-COVERAGE.md) にまとめており、全 50 行に最低 1 テストが対応している。
 仕様を変更した場合はこの表も同じ変更で更新する。
 
 ## CI(GitHub Actions)

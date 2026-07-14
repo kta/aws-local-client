@@ -1,6 +1,7 @@
-import { Navigate } from "react-router-dom";
 import type { ServiceDefinition } from "../../services/types";
 import snsIcon from "../../assets/aws/icon-sns.svg";
+import { DashboardPage } from "./DashboardPage";
+import { SubscriptionsPage } from "./SubscriptionsPage";
 import { TopicDetailPage } from "./TopicDetailPage";
 import { TopicsPage } from "./TopicsPage";
 
@@ -11,12 +12,17 @@ export const snsService: ServiceDefinition = {
   icon: snsIcon,
   basePath: "/sns",
   enabled: true,
-  home: "/sns/topics",
-  nav: [{ label: "トピック", path: "/sns/topics", testId: "nav-topics", group: 0 }],
+  home: "/sns",
+  nav: [
+    { label: "ダッシュボード", path: "/sns", testId: "nav-sns-dashboard", group: 0 },
+    { label: "トピック", path: "/sns/topics", testId: "nav-topics", group: 0 },
+    { label: "サブスクリプション", path: "/sns/subscriptions", testId: "nav-subscriptions", group: 0 },
+  ],
   routes: [
-    { path: "/sns", element: <Navigate to="/sns/topics" replace /> },
+    { path: "/sns", element: <DashboardPage /> },
     { path: "/sns/topics", element: <TopicsPage /> },
     { path: "/sns/topics/:name", element: <TopicDetailPage /> },
+    { path: "/sns/subscriptions", element: <SubscriptionsPage /> },
   ],
   crumbLabel: (pathname) => {
     if (pathname.startsWith("/sns/topics/")) {
@@ -24,6 +30,7 @@ export const snsService: ServiceDefinition = {
       return ["トピック", name];
     }
     if (pathname.startsWith("/sns/topics")) return ["トピック"];
+    if (pathname.startsWith("/sns/subscriptions")) return ["サブスクリプション"];
     return null;
   },
 };

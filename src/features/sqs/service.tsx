@@ -1,6 +1,6 @@
-import { Navigate } from "react-router-dom";
 import type { ServiceDefinition } from "../../services/types";
 import sqsIcon from "../../assets/aws/icon-sqs.svg";
+import { DashboardPage } from "./DashboardPage";
 import { QueueDetailPage } from "./QueueDetailPage";
 import { QueuesPage } from "./QueuesPage";
 
@@ -11,10 +11,13 @@ export const sqsService: ServiceDefinition = {
   icon: sqsIcon,
   basePath: "/sqs",
   enabled: true,
-  home: "/sqs/queues",
-  nav: [{ label: "キュー", path: "/sqs/queues", testId: "nav-queues", group: 0 }],
+  home: "/sqs",
+  nav: [
+    { label: "ダッシュボード", path: "/sqs", testId: "nav-sqs-dashboard", group: 0 },
+    { label: "キュー", path: "/sqs/queues", testId: "nav-queues", group: 0 },
+  ],
   routes: [
-    { path: "/sqs", element: <Navigate to="/sqs/queues" replace /> },
+    { path: "/sqs", element: <DashboardPage /> },
     { path: "/sqs/queues", element: <QueuesPage /> },
     { path: "/sqs/queues/:name", element: <QueueDetailPage /> },
   ],

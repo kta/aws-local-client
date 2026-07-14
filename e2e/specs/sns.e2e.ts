@@ -1,7 +1,9 @@
 import {
   CreateTopicCommand,
   DeleteTopicCommand,
+  GetTopicAttributesCommand,
   ListSubscriptionsByTopicCommand,
+  ListTagsForResourceCommand,
   ListTopicsCommand,
   type SNSClient,
   SubscribeCommand,
@@ -19,6 +21,8 @@ import {
   E2E_ENDPOINT,
   T,
   clickT,
+  gotoSnsDashboard,
+  gotoSnsSubscriptions,
   gotoTopicDetail,
   gotoTopics,
   setSelectValue,
@@ -29,11 +33,18 @@ import {
 import { makeSnsClient, makeSqsClient } from "../helpers/aws";
 
 /**
- * SNS requirements (R26-R28).
+ * SNS requirements (R26-R28, R39-R42). Fixtures are seeded / verified directly
+ * through the AWS SDK; the UI is exercised for the behaviour under test.
  *   R26 UI create / list / delete a topic (verified via the SDK).
  *   R27 UI add an SQS subscription -> the row appears -> UI unsubscribe.
  *   R28 UI publish -> the SDK receives the SNS envelope on the subscribed queue,
  *       and envelope.Message equals what was published.
+ *   R39 Dashboard at /sns summarises seeded topics; the create quick action opens
+ *       the create modal on the topics page.
+ *   R40 The cross-topic subscriptions list shows an SDK-seeded subscription and
+ *       can unsubscribe it (SDK confirms it is gone).
+ *   R41 UI edits a topic's DisplayName -> the SDK reflects it.
+ *   R42 UI adds a topic tag (SDK verifies), then removes it (SDK verifies).
  */
 describe("sns", () => {
   const sns: SNSClient = makeSnsClient(E2E_ENDPOINT);
@@ -198,5 +209,119 @@ describe("sns", () => {
       }
     }
     expect(delivered).toBe(message);
+  });
+
+  it("R39: dashboard summarises seeded topics and quick action opens the create modal", async () => {
+    const name = `t39-${stamp}`;
+    await seedTopic(name);
+
+    // The dashboard is reachable at /sns and shows summary cards.
+    await gotoSnsDashboard();
+    await waitDisplayed(T("sns-dash-topics"));
+    await waitDisplayed(T("sns-dash-subs"));
+    await waitDisplayed(T("sns-dash-fifo"));
+    await waitDisplayed(T("sns-dash-create"));
+
+    // The topic-count card eventually reflects the seeded topic.
+    await browser.waitUntil(
+      async () => {
+        await gotoSnsDashboard();
+        const text = await $(T("dashboard-summary")).getText();
+        const count = Number(text.match(/トピック数\s*(\d[\d,]*)/)?.[1]?.replace(/,/g, ""));
+        return count >= 1;
+      },
+      { timeout: 30000, interval: 2000, timeoutMsg: "dashboard never showed a topic count" },
+    );
+
+    // The quick action navigates to the topics page with the create modal open.
+    await clickT("sns-dash-create");
+    await waitDisplayed(T("t-name"));
+  });
+
+  it("R40: cross-topic list shows a seeded subscription and can unsubscribe it", async () => {
+    const topicName = `t40-${stamp}`;
+    const queueName = `t40q-${stamp}`;
+    const topicArn = await seedTopic(topicName);
+    const { arn: queueArn } = await seedQueue(queueName);
+    await sns.send(
+      new SubscribeCommand({ TopicArn: topicArn, Protocol: "sqs", Endpoint: queueArn }),
+    );
+
+    // The seeded subscription appears in the cross-topic list.
+    await gotoSnsSubscriptions();
+    await waitDisplayed(T(`gsub-row-${topicName}`));
+
+    // Unsubscribe via the row action (endpoint-name confirmation modal).
+    await $(T(`gsub-row-${topicName}`)).$(T("gsub-remove")).click();
+    await setValueT("gsub-remove-input", queueName);
+    await clickT("gsub-remove-confirm");
+    await browser.waitUntil(async () => !(await $(T(`gsub-row-${topicName}`)).isExisting()), {
+      timeout: 20000,
+      timeoutMsg: "subscription row was not removed",
+    });
+
+    // The SDK confirms the subscription is gone from the topic.
+    await browser.waitUntil(
+      async () => {
+        const subs = await sns.send(new ListSubscriptionsByTopicCommand({ TopicArn: topicArn }));
+        return !(subs.Subscriptions ?? []).some((s) => (s.Endpoint ?? "").endsWith(`:${queueName}`));
+      },
+      { timeout: 20000, timeoutMsg: "subscription never disappeared via the SDK" },
+    );
+  });
+
+  it("R41: edits a topic's DisplayName and the SDK reflects it", async () => {
+    const topicName = `t41-${stamp}`;
+    const topicArn = await seedTopic(topicName);
+
+    await gotoTopicDetail(topicName);
+    await clickT("tab-attrs");
+    const display = `disp-${stamp}`;
+    await setValueT("attr-display-name", display);
+    await clickT("attr-save");
+
+    await browser.waitUntil(
+      async () => {
+        const attrs = await sns.send(new GetTopicAttributesCommand({ TopicArn: topicArn }));
+        return attrs.Attributes?.DisplayName === display;
+      },
+      { timeout: 20000, timeoutMsg: "DisplayName was not updated via the SDK" },
+    );
+  });
+
+  it("R42: adds a topic tag (SDK verified), then removes it", async () => {
+    const topicName = `t42-${stamp}`;
+    const topicArn = await seedTopic(topicName);
+
+    await gotoTopicDetail(topicName);
+    await clickT("tab-tags");
+
+    // Add a tag via the UI, then confirm it via the SDK.
+    await clickT("tag-add");
+    await setValueT("tag-key-input", "env");
+    await setValueT("tag-value-input", "prod");
+    await clickT("tag-save");
+    await waitDisplayed(T("tag-remove-env"));
+    await browser.waitUntil(
+      async () => {
+        const t = await sns.send(new ListTagsForResourceCommand({ ResourceArn: topicArn }));
+        return (t.Tags ?? []).some((x) => x.Key === "env" && x.Value === "prod");
+      },
+      { timeout: 20000, timeoutMsg: "tag never appeared via the SDK" },
+    );
+
+    // Remove the tag via the UI, then confirm removal via the SDK.
+    await clickT("tag-remove-env");
+    await browser.waitUntil(async () => !(await $(T("tag-remove-env")).isExisting()), {
+      timeout: 20000,
+      timeoutMsg: "removed tag never disappeared",
+    });
+    await browser.waitUntil(
+      async () => {
+        const t = await sns.send(new ListTagsForResourceCommand({ ResourceArn: topicArn }));
+        return !(t.Tags ?? []).some((x) => x.Key === "env");
+      },
+      { timeout: 20000, timeoutMsg: "tag never cleared via the SDK" },
+    );
   });
 });

@@ -43,6 +43,17 @@ export interface SendMessageRequest {
   dedupId?: string;
 }
 
+export interface QueueTag {
+  key: string;
+  value: string;
+}
+
+export interface DlqSourceInfo {
+  redrivePolicy: string | null;
+  sources: string[];
+  supported: boolean;
+}
+
 export interface SqsMessage {
   messageId: string;
   receiptHandle: string;
@@ -69,4 +80,12 @@ export const sqs = {
     invoke<void>("sqs_delete_message", { profile, queueUrl, receiptHandle }),
   purgeQueue: (profile: ConnectionProfile, queueUrl: string) =>
     invoke<void>("sqs_purge_queue", { profile, queueUrl }),
+  listQueueTags: (profile: ConnectionProfile, queueUrl: string) =>
+    invoke<QueueTag[]>("sqs_list_queue_tags", { profile, queueUrl }),
+  tagQueue: (profile: ConnectionProfile, queueUrl: string, key: string, value: string) =>
+    invoke<void>("sqs_tag_queue", { profile, queueUrl, key, value }),
+  untagQueue: (profile: ConnectionProfile, queueUrl: string, key: string) =>
+    invoke<void>("sqs_untag_queue", { profile, queueUrl, key }),
+  listDlqSources: (profile: ConnectionProfile, queueUrl: string) =>
+    invoke<DlqSourceInfo>("sqs_list_dlq_sources", { profile, queueUrl }),
 };

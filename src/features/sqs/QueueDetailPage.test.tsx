@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
@@ -53,6 +53,10 @@ vi.mock("../../api/client", () => ({
       sendMessage: (...args: unknown[]) => sendMessage(...args),
       purgeQueue: (...args: unknown[]) => purgeQueue(...args),
       setQueueAttributes: (...args: unknown[]) => setQueueAttributes(...args),
+      listQueueTags: (...args: unknown[]) => listQueueTags(...args),
+      tagQueue: (...args: unknown[]) => tagQueue(...args),
+      untagQueue: (...args: unknown[]) => untagQueue(...args),
+      listDlqSources: (...args: unknown[]) => listDlqSources(...args),
     },
   },
   toAppError: (e: unknown) =>
@@ -68,6 +72,10 @@ const deleteMessage = vi.fn();
 const sendMessage = vi.fn();
 const purgeQueue = vi.fn();
 const setQueueAttributes = vi.fn();
+const listQueueTags = vi.fn();
+const tagQueue = vi.fn();
+const untagQueue = vi.fn();
+const listDlqSources = vi.fn();
 
 import { ConnectionsProvider } from "../../state/connections";
 import { QueueDetailPage } from "./QueueDetailPage";
@@ -92,6 +100,12 @@ beforeEach(() => {
   sendMessage.mockReset().mockResolvedValue(undefined);
   purgeQueue.mockReset().mockResolvedValue(undefined);
   setQueueAttributes.mockReset().mockResolvedValue(undefined);
+  listQueueTags.mockReset().mockResolvedValue([{ key: "env", value: "prod" }]);
+  tagQueue.mockReset().mockResolvedValue(undefined);
+  untagQueue.mockReset().mockResolvedValue(undefined);
+  listDlqSources
+    .mockReset()
+    .mockResolvedValue({ redrivePolicy: null, sources: [], supported: true });
 });
 
 afterEach(() => {
@@ -177,5 +191,71 @@ describe("QueueDetailPage", () => {
         expect.objectContaining({ visibilityTimeout: 45 }),
       ),
     );
+  });
+
+  it("lists tags and adds a new tag from the tags tab", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-tags"));
+
+    await waitFor(() =>
+      expect(listQueueTags).toHaveBeenCalledWith(expect.objectContaining({ id: "1" }), url),
+    );
+    expect(await screen.findByText("env")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("tag-add"));
+    fireEvent.change(screen.getByTestId("tag-key-input"), { target: { value: "team" } });
+    fireEvent.change(screen.getByTestId("tag-value-input"), { target: { value: "core" } });
+    fireEvent.click(screen.getByTestId("tag-save"));
+
+    await waitFor(() =>
+      expect(tagQueue).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "1" }),
+        url,
+        "team",
+        "core",
+      ),
+    );
+  });
+
+  it("removes a tag via its remove button", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-tags"));
+
+    fireEvent.click(await screen.findByTestId("tag-remove-env"));
+
+    await waitFor(() =>
+      expect(untagQueue).toHaveBeenCalledWith(expect.objectContaining({ id: "1" }), url, "env"),
+    );
+  });
+
+  it("shows the redrive policy and source queues on the dead-letter tab", async () => {
+    listDlqSources.mockResolvedValue({
+      redrivePolicy: JSON.stringify({
+        deadLetterTargetArn: "arn:aws:sqs:ap-northeast-1:000000000000:dlq",
+        maxReceiveCount: 5,
+      }),
+      sources: ["worker-queue"],
+      supported: true,
+    });
+
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-dlq"));
+
+    await waitFor(() =>
+      expect(listDlqSources).toHaveBeenCalledWith(expect.objectContaining({ id: "1" }), url),
+    );
+    expect(await screen.findByTestId("dlq-redrive-policy")).toHaveTextContent("dlq");
+    expect(screen.getByTestId("dlq-redrive-policy")).toHaveTextContent("5");
+    expect(within(screen.getByTestId("dlq-sources-table")).getByText("worker-queue")).toBeInTheDocument();
+  });
+
+  it("shows an unsupported notice when ListDeadLetterSourceQueues is not implemented", async () => {
+    listDlqSources.mockResolvedValue({ redrivePolicy: null, sources: [], supported: false });
+
+    renderPage();
+    fireEvent.click(await screen.findByTestId("tab-dlq"));
+
+    expect(await screen.findByTestId("dlq-sources-unsupported")).toBeInTheDocument();
+    expect(screen.queryByTestId("dlq-sources-table")).not.toBeInTheDocument();
   });
 });

@@ -611,6 +611,11 @@ export async function changeRegionViaHeader(region: string): Promise<void> {
 // Added for the four Phase-2 services. These follow the same hash-router pattern
 // as the DynamoDB gotos above; existing helpers are left untouched.
 
+export async function gotoSqsDashboard(): Promise<void> {
+  await navigateHash("#/sqs");
+  await waitDisplayed(T("sqs-dashboard-heading"));
+}
+
 export async function gotoQueues(): Promise<void> {
   await navigateHash("#/sqs/queues");
   await waitDisplayed(T("queues-heading"));
@@ -638,6 +643,16 @@ export async function clickEnabledT(id: string, timeout = 20000) {
   return el;
 }
 
+export async function gotoSnsDashboard(): Promise<void> {
+  await navigateHash("#/sns");
+  await waitDisplayed(T("sns-dash-topics"));
+}
+
+export async function gotoSnsSubscriptions(): Promise<void> {
+  await navigateHash("#/sns/subscriptions");
+  await waitDisplayed(T("subscriptions-table"));
+}
+
 export async function gotoTopics(): Promise<void> {
   await navigateHash("#/sns/topics");
   await waitDisplayed(T("topics-heading"));
@@ -659,11 +674,30 @@ export async function gotoBucketBrowser(bucket: string, prefix?: string): Promis
   const base = `#/s3/buckets/${encodeURIComponent(bucket)}`;
   await navigateHash(prefix ? `${base}?prefix=${encodeURIComponent(prefix)}` : base);
   await waitDisplayed(T("browser-heading"));
+  // In-app navigation reuses the BucketBrowser component, so the tab a previous
+  // test left active (e.g. プロパティ) persists. Reset to the objects tab so the
+  // object list / versions toggle are present for the caller.
+  await clickT("tab-objects");
 }
 
 export async function gotoInstances(): Promise<void> {
   await navigateHash("#/rds/instances");
   await waitDisplayed(T("instances-heading"));
+}
+
+export async function gotoRdsDashboard(): Promise<void> {
+  await navigateHash("#/rds");
+  await waitDisplayed(T("rds-dashboard-heading"));
+}
+
+export async function gotoSnapshots(): Promise<void> {
+  await navigateHash("#/rds/snapshots");
+  await waitDisplayed(T("snapshots-heading"));
+}
+
+export async function gotoParameterGroups(): Promise<void> {
+  await navigateHash("#/rds/parameter-groups");
+  await waitDisplayed(T("pgroups-heading"));
 }
 
 export { $, $$, browser, expect };

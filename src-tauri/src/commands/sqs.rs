@@ -75,6 +75,24 @@ pub struct SendMessageRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct QueueTag {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DlqSourceInfo {
+    /// This queue's own RedrivePolicy JSON, if configured.
+    pub redrive_policy: Option<String>,
+    /// Names of the queues that use this queue as their dead-letter target.
+    pub sources: Vec<String>,
+    /// False when the emulator does not implement ListDeadLetterSourceQueues.
+    pub supported: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SqsMessage {
     pub message_id: String,
     pub receipt_handle: String,
@@ -141,7 +159,14 @@ pub async fn list_queues(client: &Client) -> Result<Vec<QueueSummary>, AppError>
     let mut summaries = vec![];
     for url in out.queue_urls() {
         // Queue counts are small; a sequential GetQueueAttributes per queue is fine.
-        let attrs = get_attributes(client, url).await?;
+        // A queue can be deleted between ListQueues and this per-queue lookup
+        // (NonExistentQueue -> AppError::NotFound); skip only that case rather
+        // than failing the whole listing, and propagate every other error.
+        let attrs = match get_attributes(client, url).await {
+            Ok(a) => a,
+            Err(AppError::NotFound(_)) => continue,
+            Err(e) => return Err(e),
+        };
         summaries.push(QueueSummary {
             queue_url: url.clone(),
             name: queue_name_from_url(url),
@@ -358,6 +383,106 @@ pub async fn purge_queue(client: &Client, queue_url: &str) -> Result<(), AppErro
     Ok(())
 }
 
+/// Mirror of the frontend `isUnsupportedOperation` signature check: true when an
+/// error message looks like the emulator does not implement the operation.
+/// ministack reports ListDeadLetterSourceQueues as "The action
+/// ListDeadLetterSourceQueues is not valid for this endpoint".
+fn is_unsupported_msg(msg: &str) -> bool {
+    let m = msg.to_lowercase();
+    m.contains("unknownoperation")
+        || m.contains("unknown operation")
+        || m.contains("not supported")
+        || m.contains("not yet implemented")
+        || m.contains("pro feature")
+        || m.contains("is not valid")
+}
+
+pub async fn list_queue_tags(client: &Client, queue_url: &str) -> Result<Vec<QueueTag>, AppError> {
+    let out = client
+        .list_queue_tags()
+        .queue_url(queue_url)
+        .send()
+        .await
+        .map_err(map_sdk_err)?;
+    let mut tags: Vec<QueueTag> = out
+        .tags()
+        .map(|m| {
+            m.iter()
+                .map(|(k, v)| QueueTag {
+                    key: k.clone(),
+                    value: v.clone(),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    tags.sort_by(|a, b| a.key.cmp(&b.key));
+    Ok(tags)
+}
+
+pub async fn tag_queue(
+    client: &Client,
+    queue_url: &str,
+    key: &str,
+    value: &str,
+) -> Result<(), AppError> {
+    client
+        .tag_queue()
+        .queue_url(queue_url)
+        .tags(key, value)
+        .send()
+        .await
+        .map_err(map_sdk_err)?;
+    Ok(())
+}
+
+pub async fn untag_queue(client: &Client, queue_url: &str, key: &str) -> Result<(), AppError> {
+    client
+        .untag_queue()
+        .queue_url(queue_url)
+        .tag_keys(key)
+        .send()
+        .await
+        .map_err(map_sdk_err)?;
+    Ok(())
+}
+
+pub async fn list_dlq_sources(client: &Client, queue_url: &str) -> Result<DlqSourceInfo, AppError> {
+    let attrs = get_attributes(client, queue_url).await?;
+    let redrive_policy = attr_str(&attrs, &QueueAttributeName::RedrivePolicy);
+
+    match client
+        .list_dead_letter_source_queues()
+        .queue_url(queue_url)
+        .send()
+        .await
+    {
+        Ok(out) => {
+            let sources = out
+                .queue_urls()
+                .iter()
+                .map(|u| queue_name_from_url(u))
+                .collect();
+            Ok(DlqSourceInfo {
+                redrive_policy,
+                sources,
+                supported: true,
+            })
+        }
+        Err(e) => {
+            let err = map_sdk_err(e);
+            if is_unsupported_msg(&err.to_string()) {
+                Ok(DlqSourceInfo {
+                    redrive_policy,
+                    sources: vec![],
+                    supported: false,
+                })
+            } else {
+                Err(err)
+            }
+        }
+    }
+}
+
 fn client_for(profile: &ConnectionProfile) -> Client {
     Client::new(&make_sdk_config(profile))
 }
@@ -436,6 +561,41 @@ pub async fn sqs_purge_queue(
     purge_queue(&client_for(&profile), &queue_url).await
 }
 
+#[tauri::command(rename_all = "camelCase")]
+pub async fn sqs_list_queue_tags(
+    profile: ConnectionProfile,
+    queue_url: String,
+) -> Result<Vec<QueueTag>, AppError> {
+    list_queue_tags(&client_for(&profile), &queue_url).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn sqs_tag_queue(
+    profile: ConnectionProfile,
+    queue_url: String,
+    key: String,
+    value: String,
+) -> Result<(), AppError> {
+    tag_queue(&client_for(&profile), &queue_url, &key, &value).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn sqs_untag_queue(
+    profile: ConnectionProfile,
+    queue_url: String,
+    key: String,
+) -> Result<(), AppError> {
+    untag_queue(&client_for(&profile), &queue_url, &key).await
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn sqs_list_dlq_sources(
+    profile: ConnectionProfile,
+    queue_url: String,
+) -> Result<DlqSourceInfo, AppError> {
+    list_dlq_sources(&client_for(&profile), &queue_url).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,6 +661,43 @@ mod tests {
         assert_eq!(v["maxMessageSize"], 262144);
         assert_eq!(v["redrivePolicy"], Value::Null);
         assert_eq!(v["createdAt"], "2026-07-14T00:00:00Z");
+    }
+
+    #[test]
+    fn queue_tag_serializes_camel_case() {
+        let t = QueueTag {
+            key: "env".into(),
+            value: "prod".into(),
+        };
+        let v = serde_json::to_value(&t).unwrap();
+        assert_eq!(v["key"], "env");
+        assert_eq!(v["value"], "prod");
+    }
+
+    #[test]
+    fn dlq_source_info_serializes_camel_case() {
+        let info = DlqSourceInfo {
+            redrive_policy: Some("{\"maxReceiveCount\":3}".into()),
+            sources: vec!["src-queue".into()],
+            supported: true,
+        };
+        let v = serde_json::to_value(&info).unwrap();
+        assert_eq!(v["redrivePolicy"], "{\"maxReceiveCount\":3}");
+        assert_eq!(v["sources"][0], "src-queue");
+        assert_eq!(v["supported"], true);
+    }
+
+    #[test]
+    fn detects_unsupported_operation_signatures() {
+        assert!(is_unsupported_msg(
+            "internal error: InvalidAction: The action ListDeadLetterSourceQueues is not valid for this endpoint"
+        ));
+        assert!(is_unsupported_msg("UnknownOperationException"));
+        assert!(is_unsupported_msg("This action is not supported"));
+        assert!(is_unsupported_msg(
+            "API for service 'x' not yet implemented or pro feature"
+        ));
+        assert!(!is_unsupported_msg("not found: no such queue"));
     }
 
     #[test]

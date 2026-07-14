@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, toAppError } from "../../api/client";
 import type { TopicSummary } from "../../api/sns";
 import type { AppError } from "../../api/types";
@@ -30,6 +30,18 @@ export function TopicsPage() {
   const [actionError, setActionError] = useState<AppError | null>(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<TopicSummary | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Open the create-topic modal automatically when navigated here with ?create=1
+  // (e.g. from the dashboard quick action), then clear the flag from the URL.
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setCreating(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("create");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const toggle = (name: string) => {
     setSelected((prev) => {
