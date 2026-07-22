@@ -38,7 +38,6 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["kinesis", "Kinesis"],
   ["firehose", "Data Firehose"],
   ["cloudwatch", "CloudWatch"],
-  ["cloudwatch-logs", "CloudWatch Logs"],
   ["secrets-manager", "Secrets Manager"],
   ["ssm", "Systems Manager"],
   ["kms", "KMS"],

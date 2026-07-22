@@ -89,7 +89,6 @@ export const SERVICE_ICONS: Record<string, string> = {
   kinesis,
   firehose,
   cloudwatch,
-  "cloudwatch-logs": cloudwatch,
   "secrets-manager": secretsManager,
   ssm,
   kms,
