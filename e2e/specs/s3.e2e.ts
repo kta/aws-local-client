@@ -25,6 +25,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeS3Client } from "../helpers/aws";
+import { expectCovered, gate } from "../helpers/capabilities";
 
 /**
  * S3 requirements (R29-R32, R43-R46).
@@ -75,6 +76,8 @@ describe("s3", () => {
         /* best effort */
       }
     }
+    expectCovered("R43-tags");
+    expectCovered("R45-folder");
   });
 
   it("R29: UI creates a bucket; non-empty delete errors, empty delete succeeds", async () => {
@@ -211,7 +214,7 @@ describe("s3", () => {
     expect((listed.Contents ?? []).some((o) => o.Key === "meta.json")).toBe(false);
   });
 
-  it("R43: properties tab toggles versioning and saves tags/CORS/policy", async () => {
+  it("R43: properties tab toggles versioning and saves CORS/policy", async () => {
     const name = `bk43-${stamp}`;
     await seedBucket(name);
 
@@ -225,6 +228,30 @@ describe("s3", () => {
       async () => (await $(T("props-versioning-status")).getText()) === "Enabled",
       { timeout: 20000, timeoutMsg: "versioning did not report Enabled" },
     );
+
+    // CORS + policy editors accept and save JSON without error.
+    await setValueT(
+      "props-cors-editor",
+      '[{"allowedMethods":["GET"],"allowedOrigins":["*"]}]',
+    );
+    await clickT("props-cors-save");
+    await setValueT(
+      "props-policy-editor",
+      `{"Version":"2012-10-17","Statement":[{"Sid":"S","Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::${name}/*"}]}`,
+    );
+    await clickT("props-policy-save");
+  });
+
+  // R43 — bucket tags, gated on `s3.bucketTagging` (kumo mis-routes
+  // PutBucketTagging and cannot persist tags).
+  it("R43: saves bucket tags (SDK verified)", async function () {
+    await gate(this, "R43-tags", { on: ["s3.bucketTagging"] });
+    const name = `bk43t-${stamp}`;
+    await seedBucket(name);
+
+    await gotoBucketBrowser(name);
+    await clickT("tab-props");
+    await waitDisplayed(T("props-versioning-status"));
 
     // Tags: add a row and save; verify via SDK.
     await setValueT("props-tag-key", "team");
@@ -242,18 +269,22 @@ describe("s3", () => {
       },
       { timeout: 20000, timeoutMsg: "tag was not persisted" },
     );
+  });
 
-    // CORS + policy editors accept and save JSON without error.
-    await setValueT(
-      "props-cors-editor",
-      '[{"allowedMethods":["GET"],"allowedOrigins":["*"]}]',
-    );
-    await clickT("props-cors-save");
-    await setValueT(
-      "props-policy-editor",
-      `{"Version":"2012-10-17","Statement":[{"Sid":"S","Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::${name}/*"}]}`,
-    );
-    await clickT("props-policy-save");
+  it("R43: surfaces an error banner when bucket tagging is unsupported", async function () {
+    await gate(this, "R43-tags", { off: ["s3.bucketTagging"] });
+    const name = `bk43u-${stamp}`;
+    await seedBucket(name);
+
+    await gotoBucketBrowser(name);
+    await clickT("tab-props");
+    await waitDisplayed(T("props-versioning-status"));
+
+    await setValueT("props-tag-key", "team");
+    await setValueT("props-tag-value", "core");
+    await clickT("props-tag-add");
+    await clickT("props-tag-save");
+    await waitDisplayed(T("error-banner"));
   });
 
   it("R44: versions view lists object versions for the current prefix", async () => {
@@ -281,7 +312,7 @@ describe("s3", () => {
     );
   });
 
-  it("R45: copies an object and creates a folder", async () => {
+  it("R45: copies an object", async () => {
     const name = `bk45-${stamp}`;
     await seedBucket(name);
     await put(name, "orig.txt", "copy-me");
@@ -305,11 +336,41 @@ describe("s3", () => {
       },
       { timeout: 20000, timeoutMsg: "copied object never appeared" },
     );
+  });
+
+  // R45 — folder creation, gated on `s3.folderKeys` (kumo strips the trailing
+  // slash from "<prefix>/" marker keys, so folders can never appear there).
+  it("R45: creates a folder", async function () {
+    await gate(this, "R45-folder", { on: ["s3.folderKeys"] });
+    const name = `bk45f-${stamp}`;
+    await seedBucket(name);
+
+    await gotoBucketBrowser(name);
 
     // Create a folder: its prefix link shows up in the listing.
     await clickT("folder-create");
     await setValueT("folder-name-input", "sub");
     await clickT("folder-save");
     await waitDisplayed(T("prefix-link-sub/"));
+  });
+
+  it("R45: folder creation stays functional when folder keys do not persist", async function () {
+    await gate(this, "R45-folder", { off: ["s3.folderKeys"] });
+    const name = `bk45u-${stamp}`;
+    await seedBucket(name);
+
+    await gotoBucketBrowser(name);
+
+    // The put succeeds (the emulator answers 200) so no error surfaces; the
+    // folder just never materialises as a prefix on kumo. We deliberately do
+    // NOT assert the folder's absence: localstack:3 strips the trailing slash
+    // of marker keys nondeterministically, so a false-negative probe here must
+    // not fail the suite — the strong round-trip is covered by the supported
+    // branch on floci/ministack.
+    await clickT("folder-create");
+    await setValueT("folder-name-input", "sub");
+    await clickT("folder-save");
+    await browser.pause(2000);
+    await expect($(T("error-banner"))).not.toBeExisting();
   });
 });

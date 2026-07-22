@@ -24,6 +24,16 @@ impl std::fmt::Display for AppError {
 
 impl std::error::Error for AppError {}
 
+/// First bytes of a raw response body as UTF-8 (empty when the body is
+/// streaming or not yet buffered). Capped so a huge body cannot flood the UI.
+fn raw_body_snippet(raw: &Response) -> String {
+    const MAX: usize = 300;
+    raw.body()
+        .bytes()
+        .map(|b| String::from_utf8_lossy(&b[..b.len().min(MAX)]).into_owned())
+        .unwrap_or_default()
+}
+
 pub fn map_sdk_err<E>(err: SdkError<E, Response>) -> AppError
 where
     E: aws_smithy_types::error::metadata::ProvideErrorMetadata + std::fmt::Debug,
@@ -34,11 +44,20 @@ where
         }
         SdkError::ServiceError(se) => {
             let code = se.err().code().unwrap_or("");
-            let msg = se
-                .err()
-                .message()
-                .map(String::from)
-                .unwrap_or_else(|| format!("{:?}", se.err()));
+            // When the SDK could not deserialize the error body at all (no
+            // code, no message — e.g. an emulator answering a Query/XML
+            // protocol call with a JSON body, as kumo does for RDS), fall back
+            // to the raw response body: it carries the emulator's actual
+            // message, which the frontend's unsupported-operation detection
+            // needs to see.
+            let msg = se.err().message().map(String::from).unwrap_or_else(|| {
+                let raw = raw_body_snippet(se.raw());
+                if code.is_empty() && !raw.is_empty() {
+                    raw
+                } else {
+                    format!("{:?}", se.err())
+                }
+            });
             match code {
                 // SQS reports a missing queue as QueueDoesNotExist (AWS JSON
                 // protocol) or AWS.SimpleQueueService.NonExistentQueue (query
@@ -124,6 +143,25 @@ mod tests {
             map_sdk_err(err),
             AppError::Internal("InternalServerError: boom".into())
         );
+    }
+
+    /// A service error the SDK could not deserialize (no code, no message —
+    /// e.g. kumo answers RDS Query-protocol calls with a JSON error body) must
+    /// surface the raw response body so the frontend's unsupported-operation
+    /// detection can still match the emulator's message.
+    #[test]
+    fn undeserializable_service_error_surfaces_the_raw_body() {
+        let meta = ErrorMetadata::builder().build(); // no code, no message
+        let body = r#"{"__type":"UnknownAction","message":"Action DescribeDBSnapshots is not supported for service rds"}"#;
+        let raw = Response::new(StatusCode::try_from(400).unwrap(), SdkBody::from(body));
+        let err: SdkError<ErrorMetadata, Response> = SdkError::service_error(meta, raw);
+        match map_sdk_err(err) {
+            AppError::Internal(msg) => assert!(
+                msg.contains("is not supported for service rds"),
+                "raw body should be included, got: {msg}"
+            ),
+            other => panic!("expected Internal, got {other:?}"),
+        }
     }
 
     #[test]

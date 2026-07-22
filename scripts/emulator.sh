@@ -3,14 +3,14 @@
 # emulator.sh — start / stop / wait for an AWS emulator used by the E2E suite.
 #
 # Usage:
-#   scripts/emulator.sh start <localstack|floci|ministack|ministack-pip>
-#   scripts/emulator.sh wait  <localstack|floci|ministack|ministack-pip>
-#   scripts/emulator.sh stop  <localstack|floci|ministack|ministack-pip>
+#   scripts/emulator.sh start <localstack|floci|ministack|kumo|ministack-pip>
+#   scripts/emulator.sh wait  <localstack|floci|ministack|kumo|ministack-pip>
+#   scripts/emulator.sh stop  <localstack|floci|ministack|kumo|ministack-pip>
 #
 # All emulators listen on port 4566 (the E2E default E2E_ENDPOINT is
-# http://localhost:4566). The docker variants (localstack/floci/ministack) run
-# as containers; `ministack-pip` installs ministack from PyPI and runs it as a
-# background process — used on macOS/Windows CI where Linux containers are not
+# http://localhost:4566). The docker variants (localstack/floci/ministack/kumo)
+# run as containers; `ministack-pip` installs ministack from PyPI and runs it as
+# a background process — used on macOS/Windows CI where Linux containers are not
 # available.
 
 set -euo pipefail
@@ -26,7 +26,7 @@ PID_DIR="${TMPDIR:-/tmp}/nlsd-emulator"
 mkdir -p "${PID_DIR}"
 
 usage() {
-  echo "usage: $0 <start|stop|wait> <localstack|floci|ministack|ministack-pip>" >&2
+  echo "usage: $0 <start|stop|wait> <localstack|floci|ministack|kumo|ministack-pip>" >&2
   exit 2
 }
 
@@ -37,6 +37,7 @@ image_for() {
     localstack) echo "localstack/localstack:3" ;;
     floci)      echo "floci/floci:latest" ;;
     ministack)  echo "ministackorg/ministack" ;;
+    kumo)       echo "ghcr.io/sivchari/kumo:0.25.3" ;;
     *) return 1 ;;
   esac
 }
@@ -177,7 +178,7 @@ action="$1"
 name="$2"
 
 case "${name}" in
-  localstack|floci|ministack) is_docker=1 ;;
+  localstack|floci|ministack|kumo) is_docker=1 ;;
   ministack-pip) is_docker=0 ;;
   *) usage ;;
 esac

@@ -7,12 +7,12 @@ on:
 
 # E2E_ENDPOINT default is http://localhost:4566 (see e2e/wdio.conf.ts).
 # Emulator lifecycle is driven by scripts/emulator.sh (P2-3 contract):
-#   scripts/emulator.sh start|stop|wait <localstack|floci|ministack|ministack-pip>
-# docker-based (port 4566): localstack, floci, ministack
+#   scripts/emulator.sh start|stop|wait <localstack|floci|ministack|kumo|ministack-pip>
+# docker-based (port 4566): localstack, floci, ministack, kumo
 # pip-based (mac/win runners, no docker): ministack-pip
 
 jobs:
-  # Emulator-compatibility matrix: run the full suite against all three
+  # Emulator-compatibility matrix: run the full suite against all four
   # docker emulators on Linux. Emulator compatibility is a network-protocol
   # concern and therefore OS-independent (see plan Global Constraints).
   e2e-linux:
@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        emulator: [localstack, floci, ministack]
+        emulator: [localstack, floci, ministack, kumo]
     steps:
       - uses: actions/checkout@v4
 
@@ -44,6 +44,7 @@ jobs:
       #   localstack -> localstack/localstack:3
       #   floci      -> floci/floci:latest
       #   ministack  -> ministackorg/ministack
+      #   kumo       -> ghcr.io/sivchari/kumo:0.25.3
       - name: Start emulator (${{ matrix.emulator }})
         run: |
           chmod +x scripts/emulator.sh
