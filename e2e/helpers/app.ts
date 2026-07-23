@@ -700,4 +700,21 @@ export async function gotoParameterGroups(): Promise<void> {
   await waitDisplayed(T("pgroups-heading"));
 }
 
+// --- MSK navigation (R92-R93) ------------------------------------------------
+
+export async function gotoMskDashboard(): Promise<void> {
+  await navigateHash("#/msk");
+  await waitDisplayed(T("msk-dashboard-heading"));
+}
+
+export async function gotoClusters(): Promise<void> {
+  await navigateHash("#/msk/clusters");
+  await waitDisplayed(T("clusters-heading"));
+}
+
+export async function gotoClusterDetail(name: string): Promise<void> {
+  await navigateHash(`#/msk/clusters/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("cluster-detail-heading"));
+}
+
 export { $, $$, browser, expect };

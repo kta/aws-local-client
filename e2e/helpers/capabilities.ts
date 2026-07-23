@@ -17,10 +17,12 @@ import {
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
+import { ListClustersCommand } from "@aws-sdk/client-kafka";
 import { makeClient } from "./emulator";
 import {
   E2E_ENDPOINT,
   isUnsupportedError,
+  makeKafkaClient,
   makeS3Client,
   makeSnsClient,
   makeSqsClient,
@@ -62,7 +64,8 @@ export type CapabilityId =
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
-  | "s3.folderKeys";
+  | "s3.folderKeys"
+  | "kafka.clusters";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -290,6 +293,24 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       await fetch(markerUrl, { method: "DELETE", headers: { authorization } }).catch(() => {});
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: "probe" })).catch(() => {});
       await s3.send(new DeleteBucketCommand({ Bucket: bucket })).catch(() => {});
+    }
+  },
+
+  // MSK (Kafka). Supported on floci (Redpanda) and ministack; a Pro feature on
+  // localstack:3 (answers "pro feature") and absent on kumo (routes MSK actions
+  // to a 404 "page not found"). A successful ListClusters proves support.
+  "kafka.clusters": async () => {
+    try {
+      await makeKafkaClient().send(new ListClustersCommand({}));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode;
+      // kumo answers 404 for MSK actions it does not route.
+      if (status === 404) return false;
+      if (status !== undefined) return true;
+      throw e;
     }
   },
 };

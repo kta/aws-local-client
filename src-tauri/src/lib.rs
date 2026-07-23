@@ -118,6 +118,11 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::msk::msk_list_clusters,
+            commands::msk::msk_create_cluster,
+            commands::msk::msk_delete_cluster,
+            commands::msk::msk_describe_cluster,
+            commands::msk::msk_get_bootstrap_brokers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
