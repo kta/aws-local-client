@@ -3,6 +3,7 @@ import type { AppError, ConnectionProfile, DetectedEndpoint } from "./types";
 import { ddb } from "./dynamodb";
 import { rds } from "./rds";
 import { s3 } from "./s3";
+import { secretsManager } from "./secretsmanager";
 import { sns } from "./sns";
 import { sqs } from "./sqs";
 
@@ -26,4 +27,5 @@ export const api = {
   sns,
   s3,
   rds,
+  secretsManager,
 };
