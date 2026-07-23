@@ -118,6 +118,10 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::ecr::ecr_list_repositories,
+            commands::ecr::ecr_create_repository,
+            commands::ecr::ecr_delete_repository,
+            commands::ecr::ecr_list_images,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
