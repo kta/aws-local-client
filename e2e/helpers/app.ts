@@ -700,4 +700,16 @@ export async function gotoParameterGroups(): Promise<void> {
   await waitDisplayed(T("pgroups-heading"));
 }
 
+// --- ElastiCache navigation (R68-R70) ---------------------------------------
+
+export async function gotoElastiCacheDashboard(): Promise<void> {
+  await navigateHash("#/elasticache");
+  await waitDisplayed(T("elasticache-dashboard-heading"));
+}
+
+export async function gotoCaches(): Promise<void> {
+  await navigateHash("#/elasticache/caches");
+  await waitDisplayed(T("caches-heading"));
+}
+
 export { $, $$, browser, expect };
