@@ -118,6 +118,17 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::apigateway::apigw_list_apis,
+            commands::apigateway::apigw_create_api,
+            commands::apigateway::apigw_delete_api,
+            commands::apigateway::apigw_get_resources,
+            commands::apigateway::apigw_create_resource,
+            commands::apigateway::apigw_put_method,
+            commands::apigateway::apigw_create_deployment,
+            commands::apigateway::apigw_list_stages,
+            commands::apigateway::apigw_list_api_keys,
+            commands::apigateway::apigw_create_api_key,
+            commands::apigateway::apigw_delete_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
