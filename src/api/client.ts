@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AppError, ConnectionProfile, DetectedEndpoint } from "./types";
 import { ddb } from "./dynamodb";
+import { elasticache } from "./elasticache";
 import { rds } from "./rds";
 import { s3 } from "./s3";
 import { sns } from "./sns";
@@ -26,4 +27,5 @@ export const api = {
   sns,
   s3,
   rds,
+  elasticache,
 };

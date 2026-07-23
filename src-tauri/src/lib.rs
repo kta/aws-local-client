@@ -118,6 +118,10 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::elasticache::elasticache_list_caches,
+            commands::elasticache::elasticache_create_cache,
+            commands::elasticache::elasticache_delete_cache,
+            commands::elasticache::elasticache_get_cache,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
