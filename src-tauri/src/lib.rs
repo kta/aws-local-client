@@ -118,6 +118,16 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::lambda::lambda_list_functions,
+            commands::lambda::lambda_get_function,
+            commands::lambda::lambda_create_function,
+            commands::lambda::lambda_update_function_code,
+            commands::lambda::lambda_update_function_config,
+            commands::lambda::lambda_delete_function,
+            commands::lambda::lambda_invoke,
+            commands::lambda::lambda_list_layers,
+            commands::lambda::lambda_publish_layer_version,
+            commands::lambda::lambda_delete_layer_version,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
