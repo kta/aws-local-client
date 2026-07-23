@@ -16,12 +16,14 @@ import {
   ListTagsForResourceCommand,
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
+import { UpdateStateMachineCommand } from "@aws-sdk/client-sfn";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import { makeClient } from "./emulator";
 import {
   E2E_ENDPOINT,
   isUnsupportedError,
   makeS3Client,
+  makeSfnClient,
   makeSnsClient,
   makeSqsClient,
 } from "./aws";
@@ -60,6 +62,7 @@ export type CapabilityId =
   | "rds.snapshots.restore"
   | "rds.parameterGroups.describe"
   | "sqs.dlqSources"
+  | "sfn.updateStateMachine"
   | "sns.topicTags"
   | "s3.bucketTagging"
   | "s3.folderKeys";
@@ -205,6 +208,25 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       await makeSqsClient().send(
         new ListDeadLetterSourceQueuesCommand({
           QueueUrl: `${E2E_ENDPOINT}/000000000000/nlsd-cap-probe-missing`,
+        }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // UpdateStateMachine is unimplemented on floci (UnsupportedOperation) and kumo
+  // (InvalidAction). A missing-ARN probe distinguishes cleanly: localstack /
+  // ministack answer StateMachineDoesNotExist (implemented), the others answer
+  // an unsupported-shaped error.
+  "sfn.updateStateMachine": async () => {
+    try {
+      await makeSfnClient().send(
+        new UpdateStateMachineCommand({
+          stateMachineArn:
+            "arn:aws:states:us-east-1:000000000000:stateMachine:nlsd-cap-probe-missing",
+          definition: '{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}',
         }),
       );
       return true;

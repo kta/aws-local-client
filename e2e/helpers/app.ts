@@ -700,4 +700,22 @@ export async function gotoParameterGroups(): Promise<void> {
   await waitDisplayed(T("pgroups-heading"));
 }
 
+// --- Step Functions (R84-R86) ------------------------------------------------
+
+export async function gotoSfnDashboard(): Promise<void> {
+  await navigateHash("#/step-functions");
+  await waitDisplayed(T("step-functions-dashboard-heading"));
+}
+
+export async function gotoStateMachines(): Promise<void> {
+  await navigateHash("#/step-functions/state-machines");
+  await waitDisplayed(T("state-machines-heading"));
+  await waitDisplayed(T("state-machines-count"));
+}
+
+export async function gotoStateMachineDetail(name: string): Promise<void> {
+  await navigateHash(`#/step-functions/state-machines/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("tab-executions"));
+}
+
 export { $, $$, browser, expect };
