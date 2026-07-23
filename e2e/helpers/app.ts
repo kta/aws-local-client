@@ -700,4 +700,27 @@ export async function gotoParameterGroups(): Promise<void> {
   await waitDisplayed(T("pgroups-heading"));
 }
 
+// --- API Gateway navigation (R56-R59) ----------------------------------------
+
+export async function gotoApigwDashboard(): Promise<void> {
+  await navigateHash("#/api-gateway");
+  await waitDisplayed(T("apigw-dashboard-heading"));
+}
+
+export async function gotoApis(): Promise<void> {
+  await navigateHash("#/api-gateway/apis");
+  await waitDisplayed(T("apis-heading"));
+  await waitDisplayed(T("apis-count"));
+}
+
+export async function gotoApiDetail(id: string): Promise<void> {
+  await navigateHash(`#/api-gateway/apis/${encodeURIComponent(id)}`);
+  await waitDisplayed(T("tab-resources"));
+}
+
+export async function gotoApiKeys(): Promise<void> {
+  await navigateHash("#/api-gateway/api-keys");
+  await waitDisplayed(T("api-keys-heading"));
+}
+
 export { $, $$, browser, expect };

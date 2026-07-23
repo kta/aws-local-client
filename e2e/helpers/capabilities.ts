@@ -17,10 +17,15 @@ import {
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
+import {
+  CreateApiKeyCommand,
+  DeleteApiKeyCommand,
+} from "@aws-sdk/client-api-gateway";
 import { makeClient } from "./emulator";
 import {
   E2E_ENDPOINT,
   isUnsupportedError,
+  makeApiGatewayClient,
   makeS3Client,
   makeSnsClient,
   makeSqsClient,
@@ -62,7 +67,9 @@ export type CapabilityId =
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
-  | "s3.folderKeys";
+  | "s3.folderKeys"
+  | "apigateway.apiKeys"
+  | "apigateway.apiKeyDelete";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -257,6 +264,61 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return false;
     } finally {
       await s3.send(new DeleteBucketCommand({ Bucket: bucket })).catch(() => {});
+    }
+  },
+
+  // API-key create/list: kumo mis-routes API Gateway key operations to S3 and
+  // rejects both create and list (NoSuchBucket / InvalidRequest — a 4xx service
+  // error, not a clean "unsupported" signature), so only a successful create
+  // proves support. floci implements create/list but NOT delete (see
+  // apigateway.apiKeyDelete), so this capability covers the create/list side.
+  "apigateway.apiKeys": async () => {
+    const client = makeApiGatewayClient();
+    try {
+      const created = await client.send(
+        new CreateApiKeyCommand({ name: `nlsd-cap-probe-${PROBE_STAMP}`, enabled: true }),
+      );
+      if (created.id) {
+        await client.send(new DeleteApiKeyCommand({ apiKey: created.id })).catch(() => {});
+      }
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      // A service error (any HTTP status, e.g. kumo's mis-routed 4xx) means the
+      // emulator does not really implement API keys; a transport error re-throws.
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode;
+      if (status !== undefined) return false;
+      throw e;
+    }
+  },
+
+  // API-key delete: floci mis-routes DeleteApiKey to S3 and answers 404
+  // NoSuchBucket even though create/list work, so the only proof of support is
+  // a create+delete round-trip that both succeed. Kumo can't create keys at all
+  // and is unsupported here too. The probe key is left behind when delete fails
+  // (that is the condition under test); the ephemeral container is torn down.
+  "apigateway.apiKeyDelete": async () => {
+    const client = makeApiGatewayClient();
+    let id: string | undefined;
+    try {
+      const created = await client.send(
+        new CreateApiKeyCommand({ name: `nlsd-cap-probe-del-${PROBE_STAMP}`, enabled: true }),
+      );
+      id = created.id;
+    } catch {
+      return false; // cannot create -> delete is moot
+    }
+    if (!id) return false;
+    try {
+      await client.send(new DeleteApiKeyCommand({ apiKey: id }));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode;
+      if (status !== undefined) return false;
+      throw e;
     }
   },
 
