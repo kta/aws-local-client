@@ -1,3 +1,4 @@
+pub mod athena;
 pub mod dynamodb;
 pub mod rds;
 pub mod s3;

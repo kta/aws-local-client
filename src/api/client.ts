@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AppError, ConnectionProfile, DetectedEndpoint } from "./types";
+import { athena } from "./athena";
 import { ddb } from "./dynamodb";
 import { rds } from "./rds";
 import { s3 } from "./s3";
@@ -26,4 +27,5 @@ export const api = {
   sns,
   s3,
   rds,
+  athena,
 };

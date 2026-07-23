@@ -118,6 +118,15 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::athena::athena_start_query,
+            commands::athena::athena_get_query_execution,
+            commands::athena::athena_get_query_results,
+            commands::athena::athena_list_workgroups,
+            commands::athena::athena_create_workgroup,
+            commands::athena::athena_delete_workgroup,
+            commands::athena::athena_list_named_queries,
+            commands::athena::athena_create_named_query,
+            commands::athena::athena_delete_named_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
