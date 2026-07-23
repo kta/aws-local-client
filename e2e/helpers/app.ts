@@ -700,4 +700,17 @@ export async function gotoParameterGroups(): Promise<void> {
   await waitDisplayed(T("pgroups-heading"));
 }
 
+// --- Secrets Manager (R66-R67) -----------------------------------------------
+
+export async function gotoSecrets(): Promise<void> {
+  await navigateHash("#/secrets-manager/secrets");
+  await waitDisplayed(T("secrets-heading"));
+  await waitDisplayed(T("secrets-count"));
+}
+
+export async function gotoSecretDetail(name: string): Promise<void> {
+  await navigateHash(`#/secrets-manager/secrets/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("secret-value-toggle"));
+}
+
 export { $, $$, browser, expect };
