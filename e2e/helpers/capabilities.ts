@@ -16,15 +16,24 @@ import {
   ListTagsForResourceCommand,
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
+import {
+  CreateFunctionCommand,
+  DeleteFunctionCommand,
+  GetFunctionCommand,
+  InvokeCommand,
+  ListLayersCommand,
+} from "@aws-sdk/client-lambda";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import { makeClient } from "./emulator";
 import {
   E2E_ENDPOINT,
   isUnsupportedError,
+  makeLambdaClient,
   makeS3Client,
   makeSnsClient,
   makeSqsClient,
 } from "./aws";
+import { buildHandlerZip } from "./lambdaZip";
 
 /**
  * Emulator capability registry.
@@ -62,7 +71,9 @@ export type CapabilityId =
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
-  | "s3.folderKeys";
+  | "s3.folderKeys"
+  | "lambda.invoke"
+  | "lambda.layers";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -234,6 +245,70 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return false;
     } finally {
       await sns.send(new DeleteTopicCommand({ TopicArn })).catch(() => {});
+    }
+  },
+
+  // Functional round-trip: create a function, wait for it to become Active
+  // (localstack goes Pending while the runtime container starts) and invoke it.
+  // Only a 200 with no FunctionError proves the emulator can actually run code;
+  // kumo routes Invoke but has "no runtime handler", so it fails here.
+  "lambda.invoke": async () => {
+    const lambda = makeLambdaClient();
+    const name = `nlsd-cap-probe-inv-${PROBE_STAMP}`;
+    try {
+      await lambda.send(
+        new CreateFunctionCommand({
+          FunctionName: name,
+          Runtime: "python3.12",
+          Role: "arn:aws:iam::000000000000:role/nlsd-dummy",
+          Handler: "index.handler",
+          Code: { ZipFile: buildHandlerZip() },
+        }),
+      );
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+    try {
+      // Wait (best effort) for the function to become invokable.
+      for (let i = 0; i < 30; i++) {
+        const got = await lambda.send(new GetFunctionCommand({ FunctionName: name }));
+        if (got.Configuration?.State === "Active") break;
+        if (got.Configuration?.State === "Failed") return false;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      for (let i = 0; i < 20; i++) {
+        try {
+          const res = await lambda.send(
+            new InvokeCommand({ FunctionName: name, Payload: Buffer.from('{"a":1}') }),
+          );
+          if (res.FunctionError) return false;
+          return (res.StatusCode ?? 0) >= 200 && (res.StatusCode ?? 0) < 300;
+        } catch (e) {
+          if (isUnsupportedError(e)) return false;
+          // ResourceConflict while Pending -> retry a few times.
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+      return false;
+    } finally {
+      await lambda.send(new DeleteFunctionCommand({ FunctionName: name })).catch(() => {});
+    }
+  },
+
+  // ListLayers is unavailable on some emulators (kumo answers with a
+  // NoSuchBucket / 404 body rather than a classic unsupported signature).
+  "lambda.layers": async () => {
+    const lambda = makeLambdaClient();
+    try {
+      await lambda.send(new ListLayersCommand({}));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const err = e as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
+      const text = `${err.name ?? ""} ${err.message ?? ""}`;
+      if (/no ?such ?bucket|not ?found/i.test(text)) return false;
+      if (err.$metadata?.httpStatusCode === 404) return false;
+      throw e;
     }
   },
 
