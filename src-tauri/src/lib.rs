@@ -118,6 +118,15 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::cloudformation::cfn_list_stacks,
+            commands::cloudformation::cfn_create_stack,
+            commands::cloudformation::cfn_update_stack,
+            commands::cloudformation::cfn_delete_stack,
+            commands::cloudformation::cfn_get_stack,
+            commands::cloudformation::cfn_list_resources,
+            commands::cloudformation::cfn_list_events,
+            commands::cloudformation::cfn_get_template,
+            commands::cloudformation::cfn_list_exports,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

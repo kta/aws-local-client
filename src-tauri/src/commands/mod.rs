@@ -1,3 +1,4 @@
+pub mod cloudformation;
 pub mod dynamodb;
 pub mod rds;
 pub mod s3;
