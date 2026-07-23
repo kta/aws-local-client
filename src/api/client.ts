@@ -5,6 +5,7 @@ import { rds } from "./rds";
 import { s3 } from "./s3";
 import { sns } from "./sns";
 import { sqs } from "./sqs";
+import { stepfunctions } from "./stepfunctions";
 
 export function toAppError(e: unknown): AppError {
   if (typeof e === "object" && e !== null && "kind" in e && "message" in e) {
@@ -26,4 +27,5 @@ export const api = {
   sns,
   s3,
   rds,
+  stepfunctions,
 };
