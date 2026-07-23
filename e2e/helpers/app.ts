@@ -700,4 +700,19 @@ export async function gotoParameterGroups(): Promise<void> {
   await waitDisplayed(T("pgroups-heading"));
 }
 
+export async function gotoAthenaEditor(): Promise<void> {
+  await navigateHash("#/athena");
+  await waitDisplayed(T("athena-heading"));
+}
+
+export async function gotoAthenaSavedQueries(): Promise<void> {
+  await navigateHash("#/athena/saved-queries");
+  await waitDisplayed(T("saved-queries-heading"));
+}
+
+export async function gotoAthenaWorkgroups(): Promise<void> {
+  await navigateHash("#/athena/workgroups");
+  await waitDisplayed(T("workgroups-heading"));
+}
+
 export { $, $$, browser, expect };
