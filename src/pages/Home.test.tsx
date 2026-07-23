@@ -67,10 +67,10 @@ describe("Home service grid", () => {
   it("renders enabled services before coming-soon ones", async () => {
     await renderHome();
     const dynamodb = screen.getByTestId("service-dynamodb"); // enabled
-    const lambda = screen.getByText("Lambda"); // coming soon
+    const comingSoon = screen.getByText("EC2"); // coming soon
 
-    // DynamoDB (enabled) must appear before Lambda (coming soon) in the DOM.
-    const ordered = dynamodb.compareDocumentPosition(lambda);
+    // DynamoDB (enabled) must appear before EC2 (coming soon) in the DOM.
+    const ordered = dynamodb.compareDocumentPosition(comingSoon);
     expect(ordered & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
