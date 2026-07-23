@@ -4,6 +4,7 @@ import { sqsService } from "../features/sqs/service";
 import { snsService } from "../features/sns/service";
 import { s3Service } from "../features/s3/service";
 import { rdsService } from "../features/rds/service";
+import { secretsManagerService } from "../features/secrets-manager/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -38,12 +39,12 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["kinesis", "Kinesis"],
   ["firehose", "Data Firehose"],
   ["cloudwatch", "CloudWatch"],
-  ["secrets-manager", "Secrets Manager"],
   ["ssm", "Systems Manager"],
   ["kms", "KMS"],
   ["iam", "IAM"],
   ["cognito", "Cognito"],
   ["cloudformation", "CloudFormation"],
+  // secrets-manager promoted to a real service below.
   ["api-gateway", "API Gateway"],
   ["appsync", "AppSync"],
   ["ses", "SES"],
@@ -100,6 +101,7 @@ export const SERVICES: ServiceDefinition[] = [
   snsService,
   s3Service,
   rdsService,
+  secretsManagerService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 
