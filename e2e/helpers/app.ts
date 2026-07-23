@@ -700,4 +700,21 @@ export async function gotoParameterGroups(): Promise<void> {
   await waitDisplayed(T("pgroups-heading"));
 }
 
+// --- Cognito navigation (R60-R62) --------------------------------------------
+
+export async function gotoCognitoDashboard(): Promise<void> {
+  await navigateHash("#/cognito");
+  await waitDisplayed(T("cognito-dashboard-heading"));
+}
+
+export async function gotoUserPools(): Promise<void> {
+  await navigateHash("#/cognito/user-pools");
+  await waitDisplayed(T("user-pools-heading"));
+}
+
+export async function gotoUserPoolDetail(id: string): Promise<void> {
+  await navigateHash(`#/cognito/user-pools/${encodeURIComponent(id)}`);
+  await waitDisplayed(T("tab-users"));
+}
+
 export { $, $$, browser, expect };
