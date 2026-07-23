@@ -118,6 +118,15 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::stepfunctions::sfn_list_state_machines,
+            commands::stepfunctions::sfn_create_state_machine,
+            commands::stepfunctions::sfn_update_state_machine,
+            commands::stepfunctions::sfn_delete_state_machine,
+            commands::stepfunctions::sfn_describe_state_machine,
+            commands::stepfunctions::sfn_start_execution,
+            commands::stepfunctions::sfn_list_executions,
+            commands::stepfunctions::sfn_describe_execution,
+            commands::stepfunctions::sfn_get_execution_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
