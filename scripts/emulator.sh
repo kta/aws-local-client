@@ -51,10 +51,18 @@ start_docker() {
   image="$(image_for "${name}")"
   container="$(container_for "${name}")"
 
+  # localstack and floci execute Lambda / ECR / OpenSearch workloads in sibling
+  # Docker containers, which requires the host docker socket inside the
+  # emulator container. ministack and kumo run everything in-process.
+  local -a extra_args=()
+  case "${name}" in
+    localstack|floci) extra_args+=(-v /var/run/docker.sock:/var/run/docker.sock) ;;
+  esac
+
   if docker ps -a --format '{{.Names}}' | grep -qx "${container}"; then
     docker start "${container}" >/dev/null
   else
-    docker run -d --name "${container}" -p "${PORT}:${CONTAINER_PORT}" "${image}" >/dev/null
+    docker run -d --name "${container}" -p "${PORT}:${CONTAINER_PORT}" "${extra_args[@]+"${extra_args[@]}"}" "${image}" >/dev/null
   fi
   echo "[emulator] ${name} started (container ${container}) on ${ENDPOINT}"
 }

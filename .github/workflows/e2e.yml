@@ -129,6 +129,62 @@ jobs:
             e2e/screenshots/
           if-no-files-found: ignore
 
+  # iOS: the same spec suite driven through Appium/XCUITest against the Tauri
+  # app's WKWebView in the iOS simulator (see e2e/wdio.ios.conf.ts). Uses the
+  # pip ministack like the other non-Linux jobs (no docker on macOS runners).
+  e2e-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Start ministack (pip)
+        shell: bash
+        run: |
+          chmod +x scripts/emulator.sh
+          scripts/emulator.sh start ministack-pip
+          scripts/emulator.sh wait ministack-pip
+
+      - name: Build iOS E2E app (simulator, debug)
+        run: npm run e2e:ios:build
+
+      # Pre-build WebDriverAgent so session creation does not pay the xcodebuild
+      # cost inside the WebDriver request timeout.
+      - name: Pre-build WebDriverAgent
+        run: npx appium driver run xcuitest build-wda
+
+      - name: Run iOS E2E suite
+        run: npm run e2e:ios
+        env:
+          E2E_ENDPOINT: http://localhost:4566
+
+      - name: Stop ministack (pip)
+        if: always()
+        shell: bash
+        run: scripts/emulator.sh stop ministack-pip
+
+      - name: Upload wdio logs and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-ios-artifacts
+          path: |
+            e2e/logs-ios/
+            e2e/screenshots/
+          if-no-files-found: ignore
+
   # OS-compatibility check on Windows with a pip-launched ministack.
   # Git Bash is available on windows runners, so use `shell: bash` for the
   # emulator.sh invocations.

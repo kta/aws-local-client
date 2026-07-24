@@ -4,6 +4,22 @@ import { sqsService } from "../features/sqs/service";
 import { snsService } from "../features/sns/service";
 import { s3Service } from "../features/s3/service";
 import { rdsService } from "../features/rds/service";
+import { lambdaService } from "../features/lambda/service";
+import { apiGatewayService } from "../features/api-gateway/service";
+import { cognitoService } from "../features/cognito/service";
+import { eventbridgeService } from "../features/eventbridge/service";
+import { secretsManagerService } from "../features/secrets-manager/service";
+import { elasticacheService } from "../features/elasticache/service";
+import { cloudformationService } from "../features/cloudformation/service";
+import { ecsService } from "../features/ecs/service";
+import { ecrService } from "../features/ecr/service";
+import { cloudwatchService } from "../features/cloudwatch/service";
+import { stepFunctionsService } from "../features/step-functions/service";
+import { opensearchService } from "../features/opensearch/service";
+import { athenaService } from "../features/athena/service";
+import { mskService } from "../features/msk/service";
+import { ssmService } from "../features/ssm/service";
+import { route53Service } from "../features/route53/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -26,41 +42,24 @@ const comingSoon = (id: string, name: string): ServiceDefinition => ({
 // API for, minus the five implemented above. Sub-APIs are folded into their
 // console-level service (IoT Data -> IoT Core, SES v1/v2 -> SES, ...).
 const FLOCI_COMING_SOON: [string, string][] = [
-  ["lambda", "Lambda"],
   ["ec2", "EC2"],
-  ["ecs", "ECS"],
-  ["ecr", "ECR"],
   ["eks", "EKS"],
-  ["step-functions", "Step Functions"],
-  ["eventbridge", "EventBridge"],
   ["scheduler", "EventBridge Scheduler"],
   ["pipes", "EventBridge Pipes"],
   ["kinesis", "Kinesis"],
   ["firehose", "Data Firehose"],
-  ["cloudwatch", "CloudWatch"],
-  ["cloudwatch-logs", "CloudWatch Logs"],
-  ["secrets-manager", "Secrets Manager"],
-  ["ssm", "Systems Manager"],
   ["kms", "KMS"],
   ["iam", "IAM"],
-  ["cognito", "Cognito"],
-  ["cloudformation", "CloudFormation"],
-  ["api-gateway", "API Gateway"],
   ["appsync", "AppSync"],
   ["ses", "SES"],
-  ["route53", "Route 53"],
   ["cloudfront", "CloudFront"],
   ["elb", "Elastic Load Balancing"],
   ["auto-scaling", "Auto Scaling"],
   ["elastic-beanstalk", "Elastic Beanstalk"],
   ["lightsail", "Lightsail"],
-  ["athena", "Athena"],
   ["glue", "Glue"],
-  ["opensearch", "OpenSearch"],
   ["emr", "EMR"],
-  ["msk", "MSK"],
   ["mq", "Amazon MQ"],
-  ["elasticache", "ElastiCache"],
   ["memorydb", "MemoryDB"],
   ["neptune", "Neptune"],
   ["documentdb", "DocumentDB"],
@@ -95,13 +94,40 @@ const withOfficialIcon = (s: ServiceDefinition): ServiceDefinition => ({
   icon: SERVICE_ICONS[s.id] ?? s.icon,
 });
 
-export const SERVICES: ServiceDefinition[] = [
+const ENABLED_SERVICES: ServiceDefinition[] = [
   dynamodbService,
   sqsService,
   snsService,
   s3Service,
   rdsService,
-  ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
+  lambdaService,
+  apiGatewayService,
+  cognitoService,
+  eventbridgeService,
+  secretsManagerService,
+  elasticacheService,
+  cloudformationService,
+  ecsService,
+  ecrService,
+  cloudwatchService,
+  stepFunctionsService,
+  opensearchService,
+  athenaService,
+  mskService,
+  ssmService,
+  route53Service,
+];
+
+// Coming-soon placeholders never shadow a service that now ships for real:
+// filter out any id already present in ENABLED_SERVICES so Home renders each
+// service exactly once.
+const enabledIds = new Set(ENABLED_SERVICES.map((s) => s.id));
+
+export const SERVICES: ServiceDefinition[] = [
+  ...ENABLED_SERVICES,
+  ...FLOCI_COMING_SOON.filter(([id]) => !enabledIds.has(id)).map(([id, name]) =>
+    comingSoon(id, name),
+  ),
 ].map(withOfficialIcon);
 
 export const serviceForPath = (pathname: string): ServiceDefinition | undefined =>

@@ -184,15 +184,41 @@ describe("rds", () => {
   // error banner (the page never shows the unsupported takeover for row ops).
 
   describe("instance operations (R48)", () => {
-    it("R48: stops, starts and modifies an instance", async function () {
-      await gate(this, "R48", { on: ["rds.instances.create"] });
-      const id = `rds48-${stamp}`;
+    it("R48: stops and starts an instance", async function () {
+      await gate(this, "R48", { on: ["rds.instances.create", "rds.instances.stopStart"] });
+      const id = `rds48ss-${stamp}`;
       const row = await seedInstanceRow(id);
 
       for (const action of ["instance-stop", "instance-start"]) {
         await clickRowAction(row, action);
         await expect($(T("error-banner"))).not.toBeExisting();
       }
+
+      await rds.send(
+        new DeleteDBInstanceCommand({ DBInstanceIdentifier: id, SkipFinalSnapshot: true }),
+      );
+    });
+
+    it("R48: surfaces an error banner when stop/start is unsupported", async function () {
+      await gate(this, "R48", {
+        on: ["rds.instances.create"],
+        off: ["rds.instances.stopStart"],
+      });
+      const id = `rds48ssu-${stamp}`;
+      const row = await seedInstanceRow(id);
+
+      await clickRowAction(row, "instance-stop");
+      await waitDisplayed(T("error-banner"));
+
+      await rds.send(
+        new DeleteDBInstanceCommand({ DBInstanceIdentifier: id, SkipFinalSnapshot: true }),
+      );
+    });
+
+    it("R48: modifies an instance", async function () {
+      await gate(this, "R48", { on: ["rds.instances.create", "rds.instances.modifyApplies"] });
+      const id = `rds48-${stamp}`;
+      const row = await seedInstanceRow(id);
 
       // modify allocated storage 20 -> 30.
       await clickRowAction(row, "instance-modify");
@@ -207,6 +233,26 @@ describe("rds", () => {
         },
         { timeout: 60000, interval: 2000, timeoutMsg: `storage of ${id} was not modified` },
       );
+
+      await rds.send(
+        new DeleteDBInstanceCommand({ DBInstanceIdentifier: id, SkipFinalSnapshot: true }),
+      );
+    });
+
+    it("R48: modify round-trips where the change is not applied", async function () {
+      // floci accepts ModifyDBInstance without error but never applies the new
+      // AllocatedStorage; assert the UI round-trips without an error banner.
+      await gate(this, "R48", {
+        on: ["rds.instances.create"],
+        off: ["rds.instances.modifyApplies"],
+      });
+      const id = `rds48m-${stamp}`;
+      const row = await seedInstanceRow(id);
+
+      await clickRowAction(row, "instance-modify");
+      await setValueT("m-storage", "30");
+      await clickT("m-save");
+      await expect($(T("error-banner"))).not.toBeExisting();
 
       await rds.send(
         new DeleteDBInstanceCommand({ DBInstanceIdentifier: id, SkipFinalSnapshot: true }),

@@ -42,6 +42,19 @@ where
         SdkError::DispatchFailure(_) | SdkError::TimeoutError(_) => {
             AppError::Connection(format!("{err:?}"))
         }
+        // The emulator answered, but the SDK could not model the response as a
+        // known error (no error headers, a non-protocol body). kumo does this
+        // for services it does not route at all — a plain HTTP 404 whose body is
+        // "404 page not found" (e.g. MSK/Kafka on kumo). Surface the raw body so
+        // the frontend's unsupported-operation detection can classify it.
+        SdkError::ResponseError(re) => {
+            let raw = raw_body_snippet(re.raw());
+            if raw.is_empty() {
+                AppError::Internal(format!("{err:?}"))
+            } else {
+                AppError::Internal(raw)
+            }
+        }
         SdkError::ServiceError(se) => {
             let code = se.err().code().unwrap_or("");
             // When the SDK could not deserialize the error body at all (no
@@ -159,6 +172,27 @@ mod tests {
             AppError::Internal(msg) => assert!(
                 msg.contains("is not supported for service rds"),
                 "raw body should be included, got: {msg}"
+            ),
+            other => panic!("expected Internal, got {other:?}"),
+        }
+    }
+
+    /// kumo answers a service it does not route at all (e.g. MSK/Kafka) with a
+    /// plain HTTP 404 whose body is "404 page not found". The SDK cannot model
+    /// this as a known error and yields a `ResponseError`; the raw body must be
+    /// surfaced so the frontend's unsupported-operation detection can match it.
+    #[test]
+    fn response_error_surfaces_the_raw_body() {
+        let body = "404 page not found\n";
+        let raw = Response::new(StatusCode::try_from(404).unwrap(), SdkBody::from(body));
+        let err: SdkError<ErrorMetadata, Response> = SdkError::response_error(
+            Box::<dyn std::error::Error + Send + Sync>::from("unmodeled response"),
+            raw,
+        );
+        match map_sdk_err(err) {
+            AppError::Internal(msg) => assert!(
+                msg.contains("page not found"),
+                "raw body should be surfaced, got: {msg}"
             ),
             other => panic!("expected Internal, got {other:?}"),
         }

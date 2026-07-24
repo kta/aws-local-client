@@ -89,7 +89,25 @@ pub fn make_sdk_config(p: &ConnectionProfile) -> SdkConfig {
         .region(Region::new(p.region.clone()))
         .credentials_provider(SharedCredentialsProvider::new(creds))
         .timeout_config(timeouts)
+        .http_client(http_client())
         .build()
+}
+
+/// A process-wide plain-HTTP client for every AWS SDK call.
+///
+/// The SDK's default (HTTPS) connector builds a rustls client that loads the
+/// platform trust store via `rustls_native_certs::load_native_certs()`. That
+/// call hangs on the iOS simulator, so every AWS request blocks indefinitely —
+/// the connect timeout never even fires. Local AWS emulators are always plain
+/// `http://`, so a plain-HTTP connector (which never touches the trust store)
+/// both fixes iOS and is fully correct for every supported endpoint. Shared so
+/// the connection pool is reused across the many per-service clients.
+fn http_client() -> aws_smithy_runtime_api::client::http::SharedHttpClient {
+    static CLIENT: std::sync::OnceLock<aws_smithy_runtime_api::client::http::SharedHttpClient> =
+        std::sync::OnceLock::new();
+    CLIENT
+        .get_or_init(|| aws_smithy_http_client::Builder::new().build_http())
+        .clone()
 }
 
 pub fn make_client(p: &ConnectionProfile) -> aws_sdk_dynamodb::Client {

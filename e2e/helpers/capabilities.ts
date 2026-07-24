@@ -1,4 +1,9 @@
 import {
+  ListNamedQueriesCommand,
+  ListWorkGroupsCommand,
+  StartQueryExecutionCommand,
+} from "@aws-sdk/client-athena";
+import {
   ExecuteStatementCommand,
   ListBackupsCommand,
 } from "@aws-sdk/client-dynamodb";
@@ -11,20 +16,94 @@ import {
   PutBucketTaggingCommand,
 } from "@aws-sdk/client-s3";
 import {
+  CreateRepositoryCommand,
+  DeleteRepositoryCommand,
+  DescribeRepositoriesCommand,
+} from "@aws-sdk/client-ecr";
+import {
   CreateTopicCommand,
   DeleteTopicCommand,
   ListTagsForResourceCommand,
+  ListTopicsCommand,
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
+import {
+  CreateFunctionCommand,
+  DeleteFunctionCommand,
+  GetFunctionCommand,
+  InvokeCommand,
+  ListLayersCommand,
+} from "@aws-sdk/client-lambda";
+import {
+  AdminSetUserPasswordCommand,
+  ListGroupsCommand,
+  ListUserPoolsCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
+import {
+  CreateSecretCommand,
+  DeleteSecretCommand,
+  DescribeSecretCommand,
+  TagResourceCommand as SecretsTagResourceCommand,
+} from "@aws-sdk/client-secrets-manager";
+import { DescribeReplicationGroupsCommand } from "@aws-sdk/client-elasticache";
+import {
+  CreateStackCommand,
+  DeleteStackCommand,
+  DescribeStacksCommand,
+  UpdateStackCommand,
+} from "@aws-sdk/client-cloudformation";
+import {
+  CreateClusterCommand,
+  DeleteClusterCommand,
+  ListClustersCommand,
+  ListServicesCommand,
+  ListTaskDefinitionsCommand,
+  ListTasksCommand,
+  RegisterTaskDefinitionCommand,
+  RunTaskCommand,
+  StopTaskCommand,
+} from "@aws-sdk/client-ecs";
+import { DisableRuleCommand } from "@aws-sdk/client-eventbridge";
+import { GetParameterHistoryCommand } from "@aws-sdk/client-ssm";
+import { UpdateStateMachineCommand } from "@aws-sdk/client-sfn";
+import {
+  CreateDomainCommand,
+  DeleteDomainCommand,
+  ListDomainNamesCommand,
+} from "@aws-sdk/client-opensearch";
+import { ListHealthChecksCommand } from "@aws-sdk/client-route-53";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
+import {
+  CreateApiKeyCommand,
+  DeleteApiKeyCommand,
+} from "@aws-sdk/client-api-gateway";
+import { ListClustersCommand as ListKafkaClustersCommand } from "@aws-sdk/client-kafka";
 import { makeClient } from "./emulator";
 import {
+  awsQuery,
+  cwQuery,
   E2E_ENDPOINT,
   isUnsupportedError,
+  makeLambdaClient,
+  makeApiGatewayClient,
+  makeCognitoClient,
+  makeElastiCacheClient,
+  makeCfnClient,
+  makeEcsClient,
+  makeEcrClient,
+  makeEventBridgeClient,
+  makeSsmClient,
+  makeOpenSearchClient,
+  makeAthenaClient,
+  makeKafkaClient,
+  makeRoute53Client,
   makeS3Client,
+  makeSecretsManagerClient,
+  makeSfnClient,
   makeSnsClient,
   makeSqsClient,
 } from "./aws";
+import { buildHandlerZip } from "./lambdaZip";
 
 /**
  * Emulator capability registry.
@@ -56,17 +135,51 @@ export type CapabilityId =
   | "rds.instances.describe"
   | "rds.instances.create"
   | "rds.instances.reboot"
+  | "rds.instances.stopStart"
+  | "rds.instances.modifyApplies"
   | "rds.snapshots.describe"
   | "rds.snapshots.restore"
   | "rds.parameterGroups.describe"
+  | "elasticache.describe"
+  | "cloudformation.resourceCreation"
+  | "cloudformation.resourceReplacement"
   | "sqs.dlqSources"
+  | "sfn.updateStateMachine"
   | "sns.topicTags"
   | "s3.bucketTagging"
-  | "s3.folderKeys";
+  | "s3.folderKeys"
+  | "lambda.invoke"
+  | "lambda.layers"
+  | "apigateway.apiKeys"
+  | "apigateway.apiKeyDelete"
+  | "cognito.userPools"
+  | "cognito.groups"
+  | "cognito.adminUserState"
+  | "secretsmanager.tags"
+  | "ecs.clusters"
+  | "ecs.taskDefinitions"
+  | "ecs.services"
+  | "ecs.tasks"
+  | "ecs.runTask"
+  | "eventbridge.ruleState"
+  | "ssm.history"
+  | "ecr.repositories"
+  | "ecr.create"
+  | "cloudwatch.metrics"
+  | "cloudwatch.alarms"
+  | "opensearch.domains"
+  | "opensearch.create"
+  | "athena.query"
+  | "athena.workgroups"
+  | "athena.namedQueries"
+  | "kafka.clusters"
+  | "route53.healthChecks";
 
-/** Unsupported-operation shapes seen in raw response bodies across emulators. */
+/** Unsupported-operation shapes seen in raw response bodies across emulators.
+ *  `unknown service` covers kumo, which does not route the CloudWatch
+ *  `monitoring` service at all (`{"__type":"UnknownService"}`). */
 function isUnsupportedText(text: string): boolean {
-  return /unknown ?operation|unknownaction|not ?implemented|not supported|invalidaction|is not valid|pro feature/i.test(
+  return /unknown ?operation|unknownaction|unknown ?service|not ?implemented|not supported|invalidaction|is not valid|pro feature/i.test(
     text,
   );
 }
@@ -90,30 +203,17 @@ function serviceErrorMeansImplemented(e: unknown): boolean {
 }
 
 /**
- * Raw RDS Query-protocol call. The AWS SDK cannot be used for RDS probes:
+ * Raw RDS Query-protocol call — a thin wrapper over the shared `awsQuery`
+ * helper (`api/rds`, API version 2014-10-31), behaviour-identical to the
+ * former inline implementation. The AWS SDK cannot be used for RDS probes:
  * kumo answers unsupported RDS actions with a JSON error body on this XML
- * protocol, which the SDK turns into an opaque deserialization error. A raw
- * HTTP call lets us classify the body text directly on every emulator.
- * The `api/rds` User-Agent token is required by kumo to disambiguate action
- * names shared across services (e.g. CreateDBInstance vs DocumentDB).
+ * protocol, which the SDK turns into an opaque deserialization error.
  */
-async function rdsQuery(
+function rdsQuery(
   action: string,
   params: Record<string, string> = {},
 ): Promise<{ ok: boolean; body: string }> {
-  const form = new URLSearchParams({ Action: action, Version: "2014-10-31", ...params });
-  const res = await fetch(`${E2E_ENDPOINT}/`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded; charset=utf-8",
-      "user-agent": "aws-sdk-js/3.0 api/rds#3.0",
-      // Emulators do not verify signatures but some route by the credential scope.
-      authorization:
-        "AWS4-HMAC-SHA256 Credential=dummy/20260101/us-east-1/rds/aws4_request, SignedHeaders=host, Signature=dummy",
-    },
-    body: form.toString(),
-  });
-  return { ok: res.ok, body: await res.text() };
+  return awsQuery("rds", action, params, "2014-10-31");
 }
 
 /** RDS describe-style probe: the call itself must succeed. */
@@ -169,14 +269,23 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
   // counts as "not create-capable".
   "rds.instances.create": async () => {
     const id = `nlsd-cap-probe-${PROBE_STAMP}`;
-    const { ok } = await rdsQuery("CreateDBInstance", {
-      DBInstanceIdentifier: id,
-      Engine: "mysql",
-      DBInstanceClass: "db.t3.micro",
-      MasterUsername: "admin",
-      MasterUserPassword: "password123",
-      AllocatedStorage: "20",
-    });
+    // Retry: under the full parallel suite a create can transiently fail on a
+    // create-capable emulator (floci). A genuinely create-incapable emulator
+    // fails every attempt, so retries only rescue transient load failures.
+    let ok = false;
+    for (let attempt = 0; attempt < 4 && !ok; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+      ok = (
+        await rdsQuery("CreateDBInstance", {
+          DBInstanceIdentifier: id,
+          Engine: "mysql",
+          DBInstanceClass: "db.t3.micro",
+          MasterUsername: "admin",
+          MasterUserPassword: "password123",
+          AllocatedStorage: "20",
+        })
+      ).ok;
+    }
     if (!ok) return false;
     // Cleanup is best effort; the probe instance is uniquely named.
     await rdsQuery("DeleteDBInstance", {
@@ -189,6 +298,54 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
   "rds.instances.reboot": () =>
     rdsNotFoundProbe("RebootDBInstance", { DBInstanceIdentifier: "nlsd-cap-probe-missing" }),
 
+  // Stop/Start: floci answers "Operation StopDBInstance is not supported" while
+  // ministack/localstack implement it. A NotFound for a missing instance proves
+  // the operation is routed; an unsupported error proves it is not.
+  "rds.instances.stopStart": () =>
+    rdsNotFoundProbe("StopDBInstance", { DBInstanceIdentifier: "nlsd-cap-probe-missing" }),
+
+  // Modify-applies: floci accepts ModifyDBInstance without error but never
+  // actually changes AllocatedStorage, while ministack/localstack apply it.
+  // Only reachable where create works (gated behind rds.instances.create), so
+  // the emulator supports real RDS instances; drive a full create -> modify ->
+  // observe cycle and confirm the new storage lands.
+  "rds.instances.modifyApplies": async () => {
+    const id = `nlsd-cap-modify-${PROBE_STAMP}`;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const created = await rdsQuery("CreateDBInstance", {
+      DBInstanceIdentifier: id,
+      Engine: "mysql",
+      DBInstanceClass: "db.t3.micro",
+      MasterUsername: "admin",
+      MasterUserPassword: "password123",
+      AllocatedStorage: "20",
+    });
+    if (!created.ok) return false;
+    try {
+      for (let i = 0; i < 20; i++) {
+        const d = await rdsQuery("DescribeDBInstances", { DBInstanceIdentifier: id });
+        if (/<DBInstanceStatus>available<\/DBInstanceStatus>/.test(d.body)) break;
+        await sleep(1000);
+      }
+      await rdsQuery("ModifyDBInstance", {
+        DBInstanceIdentifier: id,
+        AllocatedStorage: "30",
+        ApplyImmediately: "true",
+      });
+      for (let i = 0; i < 15; i++) {
+        const d = await rdsQuery("DescribeDBInstances", { DBInstanceIdentifier: id });
+        if (/<AllocatedStorage>30<\/AllocatedStorage>/.test(d.body)) return true;
+        await sleep(1000);
+      }
+      return false;
+    } finally {
+      await rdsQuery("DeleteDBInstance", {
+        DBInstanceIdentifier: id,
+        SkipFinalSnapshot: "true",
+      }).catch(() => {});
+    }
+  },
+
   "rds.snapshots.describe": () => rdsDescribeProbe("DescribeDBSnapshots"),
 
   "rds.snapshots.restore": () =>
@@ -199,12 +356,300 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
 
   "rds.parameterGroups.describe": () => rdsDescribeProbe("DescribeDBParameterGroups"),
 
+  // ElastiCache is Pro-only on localstack:3 (rejects describe with an
+  // unsupported/pro-feature error); ministack/floci/kumo implement it. A
+  // successful DescribeReplicationGroups (or any non-unsupported service error)
+  // proves the API is routed.
+  "elasticache.describe": async () => {
+    try {
+      await makeElastiCacheClient().send(new DescribeReplicationGroupsCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // Functional round-trip: kumo's CloudFormation is control-plane only — it
+  // reaches CREATE_COMPLETE but never provisions the templated resource, so
+  // only "the SNS topic the template declares actually exists afterwards"
+  // proves resources are really created. Real emulators (ministack/floci/
+  // localstack) provision it; kumo does not.
+  "cloudformation.resourceCreation": async () => {
+    const cfn = makeCfnClient();
+    const sns = makeSnsClient();
+    const stack = `nlsd-cap-cfn-${PROBE_STAMP}`;
+    const topic = `nlsd-cap-cfn-topic-${PROBE_STAMP}`;
+    const template = JSON.stringify({
+      Resources: {
+        ProbeTopic: { Type: "AWS::SNS::Topic", Properties: { TopicName: topic } },
+      },
+    });
+    try {
+      await cfn.send(new CreateStackCommand({ StackName: stack, TemplateBody: template }));
+    } catch (e) {
+      serviceErrorMeansImplemented(e); // re-throws transport errors
+      return false; // any create rejection => not resource-creation-capable
+    }
+    try {
+      // Wait for CREATE_COMPLETE (bounded), then check the real resource.
+      for (let i = 0; i < 30; i++) {
+        try {
+          const out = await cfn.send(new DescribeStacksCommand({ StackName: stack }));
+          const st = out.Stacks?.[0]?.StackStatus;
+          if (st === "CREATE_COMPLETE") break;
+          if (st?.endsWith("_FAILED")) return false;
+        } catch {
+          /* not ready yet */
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      const topics = await sns.send(new ListTopicsCommand({}));
+      return (topics.Topics ?? []).some((t) => t.TopicArn?.includes(topic));
+    } finally {
+      await cfn.send(new DeleteStackCommand({ StackName: stack })).catch(() => {});
+    }
+  },
+
+  // Update-replacement provisioning: localstack:3 reaches UPDATE_COMPLETE but
+  // does NOT re-provision a resource that a template change replaces (an SNS
+  // TopicName swap forces replacement), while ministack/floci do. Probe the
+  // full create -> update-replace cycle and confirm the new topic really exists.
+  "cloudformation.resourceReplacement": async () => {
+    const cfn = makeCfnClient();
+    const sns = makeSnsClient();
+    const stack = `nlsd-cap-cfnupd-${PROBE_STAMP}`;
+    const topicA = `nlsd-cap-cfnupd-a-${PROBE_STAMP}`;
+    const topicB = `nlsd-cap-cfnupd-b-${PROBE_STAMP}`;
+    const tpl = (t: string) =>
+      JSON.stringify({
+        Resources: { ProbeTopic: { Type: "AWS::SNS::Topic", Properties: { TopicName: t } } },
+      });
+    const waitFor = async (want: string): Promise<boolean> => {
+      for (let i = 0; i < 30; i++) {
+        try {
+          const out = await cfn.send(new DescribeStacksCommand({ StackName: stack }));
+          const st = out.Stacks?.[0]?.StackStatus;
+          if (st === want) return true;
+          if (st?.endsWith("_FAILED")) return false;
+        } catch {
+          /* not ready yet */
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      return false;
+    };
+    try {
+      await cfn.send(new CreateStackCommand({ StackName: stack, TemplateBody: tpl(topicA) }));
+    } catch (e) {
+      serviceErrorMeansImplemented(e); // re-throws transport errors
+      return false;
+    }
+    try {
+      if (!(await waitFor("CREATE_COMPLETE"))) return false;
+      await cfn.send(new UpdateStackCommand({ StackName: stack, TemplateBody: tpl(topicB) }));
+      if (!(await waitFor("UPDATE_COMPLETE"))) return false;
+      const topics = await sns.send(new ListTopicsCommand({}));
+      return (topics.Topics ?? []).some((t) => t.TopicArn?.endsWith(`:${topicB}`));
+    } finally {
+      await cfn.send(new DeleteStackCommand({ StackName: stack })).catch(() => {});
+    }
+  },
+
+  // ECS control plane. localstack:3 is ECS-Pro-only and rejects ListClusters
+  // as unsupported; ministack/floci implement it. A clean ListClusters (or any
+  // non-unsupported service error) proves the control plane is available.
+  "ecs.clusters": async () => {
+    try {
+      await makeEcsClient().send(new ListClustersCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // ListTaskDefinitions: ministack/floci implement the full ECS control plane;
+  // kumo is control-plane-PARTIAL — it routes ListClusters/RegisterTaskDefinition
+  // but answers ListTaskDefinitions with UnknownOperationException ("is not
+  // valid"), so the task-definitions page cannot list and shows its unsupported
+  // banner. A clean list (or a non-unsupported service error) proves support.
+  "ecs.taskDefinitions": async () => {
+    try {
+      await makeEcsClient().send(new ListTaskDefinitionsCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // ListServices: same kumo control-plane-partial story (kumo answers
+  // UnknownOperationException). A ListServices against a deliberately missing
+  // cluster answers ClusterNotFound where implemented (proving routing) and an
+  // unsupported-shaped error where not.
+  "ecs.services": async () => {
+    try {
+      await makeEcsClient().send(
+        new ListServicesCommand({ cluster: "nlsd-cap-probe-missing" }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // ListTasks: kumo answers UnknownOperationException; ministack/floci implement
+  // it (ClusterNotFound for a missing cluster proves routing). Drives whether the
+  // cluster-detail tasks tab can list tasks at all.
+  "ecs.tasks": async () => {
+    try {
+      await makeEcsClient().send(new ListTasksCommand({ cluster: "nlsd-cap-probe-missing" }));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // Functional round-trip: RunTask must actually materialize a task that
+  // ListTasks then returns. This separates a control-plane that only ACKS
+  // RunTask (or cannot list tasks — kumo) from one that really runs a task
+  // (ministack/floci with Docker). A no-materialization / unsupported result
+  // counts as not-run-capable; transport errors re-throw.
+  "ecs.runTask": async () => {
+    const ecs = makeEcsClient();
+    const cluster = `nlsd-cap-ecs-${PROBE_STAMP}`;
+    const family = `nlsd-cap-ecsf-${PROBE_STAMP}`;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    try {
+      await ecs.send(new CreateClusterCommand({ clusterName: cluster }));
+      await ecs.send(
+        new RegisterTaskDefinitionCommand({
+          family,
+          containerDefinitions: [
+            {
+              name: "app",
+              image: "public.ecr.aws/docker/library/busybox:stable",
+              memory: 128,
+              essential: true,
+              command: ["sleep", "60"],
+            },
+          ],
+        }),
+      );
+      await ecs.send(new RunTaskCommand({ cluster, taskDefinition: family, count: 1 }));
+      for (let i = 0; i < 10; i++) {
+        const { taskArns } = await ecs.send(new ListTasksCommand({ cluster }));
+        if ((taskArns?.length ?? 0) > 0) return true;
+        await sleep(1000);
+      }
+      return false;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    } finally {
+      try {
+        const { taskArns } = await ecs.send(new ListTasksCommand({ cluster }));
+        for (const taskArn of taskArns ?? []) {
+          await ecs.send(new StopTaskCommand({ cluster, task: taskArn })).catch(() => {});
+        }
+      } catch {
+        /* ignore */
+      }
+      await ecs.send(new DeleteClusterCommand({ cluster })).catch(() => {});
+    }
+  },
+
+  // EventBridge DisableRule/EnableRule: ministack/floci/localstack apply the
+  // state change; kumo answers InvalidAction ("The action DisableRule is not
+  // valid for this endpoint") — it does not model rule enable/disable. A
+  // DisableRule against a deliberately missing rule answers ResourceNotFound
+  // where implemented (proving routing) and an unsupported-shaped error where not.
+  "eventbridge.ruleState": async () => {
+    try {
+      await makeEventBridgeClient().send(
+        new DisableRuleCommand({ Name: "nlsd-cap-probe-missing" }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // GetParameterHistory: ministack/floci/localstack implement it; kumo answers
+  // ValidationException "The action GetParameterHistory is not valid" — it does
+  // not model version history. The error NAME is ValidationException (not an
+  // Unknown*/Invalid* shape), so the generic serviceErrorMeansImplemented would
+  // misread the "is not valid" body as a real validation error; classify on the
+  // body text directly. A ParameterNotFound for a missing name proves routing.
+  "ssm.history": async () => {
+    try {
+      await makeSsmClient().send(
+        new GetParameterHistoryCommand({ Name: "/nlsd-cap-probe-missing" }),
+      );
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const err = e as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
+      const text = `${err.name ?? ""} ${err.message ?? ""}`;
+      if (/is not valid|not ?implemented|not supported|unknown ?operation/i.test(text)) {
+        return false;
+      }
+      if (err.$metadata?.httpStatusCode !== undefined) return true;
+      throw e;
+    }
+  },
+
+  // Domain describe: ListDomainNames must be routed. kumo answers unsupported
+  // (its console has no OpenSearch); a NotFound-style/other service error proves
+  // the operation exists.
+  "opensearch.domains": async () => {
+    try {
+      await makeOpenSearchClient().send(new ListDomainNamesCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // Domain create needs a real OpenSearch node: floci only creates one when
+  // started with the docker socket mounted (T0). Any create rejection — the
+  // socket-less "cannot start container" error included — counts as
+  // not-create-capable, mirroring the rds.instances.create probe. The probe
+  // domain is deleted promptly because floci spins up a heavy real container.
+  "opensearch.create": async () => {
+    const os = makeOpenSearchClient();
+    const name = `nlsd-os-probe-${PROBE_STAMP % 100000}`;
+    try {
+      await os.send(new CreateDomainCommand({ DomainName: name }));
+    } catch {
+      return false;
+    }
+    await os.send(new DeleteDomainCommand({ DomainName: name })).catch(() => {});
+    return true;
+  },
+
   // A missing queue is enough: QueueDoesNotExist proves the action is routed.
   "sqs.dlqSources": async () => {
     try {
       await makeSqsClient().send(
         new ListDeadLetterSourceQueuesCommand({
           QueueUrl: `${E2E_ENDPOINT}/000000000000/nlsd-cap-probe-missing`,
+        }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // UpdateStateMachine is unimplemented on floci (UnsupportedOperation) and kumo
+  // (InvalidAction). A missing-ARN probe distinguishes cleanly: localstack /
+  // ministack answer StateMachineDoesNotExist (implemented), the others answer
+  // an unsupported-shaped error.
+  "sfn.updateStateMachine": async () => {
+    try {
+      await makeSfnClient().send(
+        new UpdateStateMachineCommand({
+          stateMachineArn:
+            "arn:aws:states:us-east-1:000000000000:stateMachine:nlsd-cap-probe-missing",
+          definition: '{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}',
         }),
       );
       return true;
@@ -237,6 +682,91 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
     }
   },
 
+  // Functional round-trip: create a function, wait for it to become Active
+  // (localstack goes Pending while the runtime container starts) and invoke it.
+  // Only a 200 with no FunctionError proves the emulator can actually run code;
+  // kumo routes Invoke but has "no runtime handler", so it fails here.
+  "lambda.invoke": async () => {
+    const lambda = makeLambdaClient();
+    const name = `nlsd-cap-probe-inv-${PROBE_STAMP}`;
+    try {
+      await lambda.send(
+        new CreateFunctionCommand({
+          FunctionName: name,
+          Runtime: "python3.12",
+          Role: "arn:aws:iam::000000000000:role/nlsd-dummy",
+          Handler: "index.handler",
+          Code: { ZipFile: buildHandlerZip() },
+        }),
+      );
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+    try {
+      // Wait (best effort) for the function to become invokable.
+      for (let i = 0; i < 30; i++) {
+        const got = await lambda.send(new GetFunctionCommand({ FunctionName: name }));
+        if (got.Configuration?.State === "Active") break;
+        if (got.Configuration?.State === "Failed") return false;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      for (let i = 0; i < 20; i++) {
+        try {
+          const res = await lambda.send(
+            new InvokeCommand({ FunctionName: name, Payload: Buffer.from('{"a":1}') }),
+          );
+          if (res.FunctionError) return false;
+          return (res.StatusCode ?? 0) >= 200 && (res.StatusCode ?? 0) < 300;
+        } catch (e) {
+          if (isUnsupportedError(e)) return false;
+          // ResourceConflict while Pending -> retry a few times.
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+      return false;
+    } finally {
+      await lambda.send(new DeleteFunctionCommand({ FunctionName: name })).catch(() => {});
+    }
+  },
+
+  // ListLayers is unavailable on some emulators (kumo answers with a
+  // NoSuchBucket / 404 body rather than a classic unsupported signature).
+  "lambda.layers": async () => {
+    const lambda = makeLambdaClient();
+    try {
+      await lambda.send(new ListLayersCommand({}));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const err = e as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
+      const text = `${err.name ?? ""} ${err.message ?? ""}`;
+      if (/no ?such ?bucket|not ?found/i.test(text)) return false;
+      if (err.$metadata?.httpStatusCode === 404) return false;
+      // localstack:3's layers API is broken: ListLayers raises a 500
+      // "list index out of range" internal error. Treat the broken feature as
+      // unsupported (the app shows the same unsupported banner).
+      if (/list index out of range/i.test(text)) return false;
+      throw e;
+    }
+  },
+
+  // ListHealthChecks takes no resource, so on any implementation it succeeds.
+  // kumo does not implement Route 53 health checks and answers the endpoint
+  // with a plain HTTP 404, which is neither an AWS "unsupported" error nor a
+  // NotFound for a specific resource — so ANY service response error (a status
+  // code is present) means unsupported here; only transport errors re-throw.
+  "route53.healthChecks": async () => {
+    try {
+      await makeRoute53Client().send(new ListHealthChecksCommand({}));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+      if (status !== undefined) return false;
+      throw e;
+    }
+  },
+
   // Functional round-trip: kumo mis-routes PutBucketTagging to CreateBucket,
   // so only "the tag actually persisted" proves the capability.
   "s3.bucketTagging": async () => {
@@ -257,6 +787,106 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return false;
     } finally {
       await s3.send(new DeleteBucketCommand({ Bucket: bucket })).catch(() => {});
+    }
+  },
+
+  // API-key create/list: kumo mis-routes API Gateway key operations to S3 and
+  // rejects both create and list (NoSuchBucket / InvalidRequest — a 4xx service
+  // error, not a clean "unsupported" signature), so only a successful create
+  // proves support. floci implements create/list but NOT delete (see
+  // apigateway.apiKeyDelete), so this capability covers the create/list side.
+  "apigateway.apiKeys": async () => {
+    const client = makeApiGatewayClient();
+    try {
+      const created = await client.send(
+        new CreateApiKeyCommand({ name: `nlsd-cap-probe-${PROBE_STAMP}`, enabled: true }),
+      );
+      if (created.id) {
+        await client.send(new DeleteApiKeyCommand({ apiKey: created.id })).catch(() => {});
+      }
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      // A service error (any HTTP status, e.g. kumo's mis-routed 4xx) means the
+      // emulator does not really implement API keys; a transport error re-throws.
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode;
+      if (status !== undefined) return false;
+      throw e;
+    }
+  },
+
+  // API-key delete: floci mis-routes DeleteApiKey to S3 and answers 404
+  // NoSuchBucket even though create/list work, so the only proof of support is
+  // a create+delete round-trip that both succeed. Kumo can't create keys at all
+  // and is unsupported here too. The probe key is left behind when delete fails
+  // (that is the condition under test); the ephemeral container is torn down.
+  "apigateway.apiKeyDelete": async () => {
+    const client = makeApiGatewayClient();
+    let id: string | undefined;
+    try {
+      const created = await client.send(
+        new CreateApiKeyCommand({ name: `nlsd-cap-probe-del-${PROBE_STAMP}`, enabled: true }),
+      );
+      id = created.id;
+    } catch {
+      return false; // cannot create -> delete is moot
+    }
+    if (!id) return false;
+    try {
+      await client.send(new DeleteApiKeyCommand({ apiKey: id }));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode;
+      if (status !== undefined) return false;
+      throw e;
+    }
+  },
+
+  // localstack:3 CE answers every cognito-idp action with a "pro feature"
+  // error; floci/ministack/kumo implement user pools. A successful ListUserPools
+  // is enough.
+  "cognito.userPools": async () => {
+    try {
+      await makeCognitoClient().send(new ListUserPoolsCommand({ MaxResults: 1 }));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // Groups are implemented on floci/ministack but not kumo (InvalidAction). A
+  // ListGroups against a deliberately missing pool answers ResourceNotFound
+  // where implemented (proving routing) and InvalidAction where not.
+  "cognito.groups": async () => {
+    try {
+      await makeCognitoClient().send(
+        new ListGroupsCommand({ UserPoolId: "ap-northeast-1_nlsdprobe" }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // AdminSetUserPassword / AdminEnableUser / AdminDisableUser are implemented on
+  // floci/ministack but not kumo (InvalidAction). Probe the password op against
+  // a missing pool: NotFound proves it is routed, InvalidAction proves it is not.
+  "cognito.adminUserState": async () => {
+    try {
+      await makeCognitoClient().send(
+        new AdminSetUserPasswordCommand({
+          UserPoolId: "ap-northeast-1_nlsdprobe",
+          Username: "nlsd-cap-probe-missing",
+          Password: "Probe1234!",
+          Permanent: true,
+        }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
     }
   },
 
@@ -292,7 +922,133 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       await s3.send(new DeleteBucketCommand({ Bucket: bucket })).catch(() => {});
     }
   },
+
+  // Functional round-trip: kumo answers TagResource/UntagResource with
+  // InvalidAction ("is not valid"), so only "the tag comes back from
+  // DescribeSecret" proves the capability. DescribeSecret itself works on all
+  // four emulators, so tag LISTING is unconditional; only the mutations gate.
+  "secretsmanager.tags": async () => {
+    const sm = makeSecretsManagerClient();
+    const name = `nlsd-cap-probe-sm-${PROBE_STAMP}`;
+    await sm.send(new CreateSecretCommand({ Name: name, SecretString: "{}" }));
+    try {
+      await sm.send(
+        new SecretsTagResourceCommand({ SecretId: name, Tags: [{ Key: "probe", Value: "1" }] }),
+      );
+      const got = await sm.send(new DescribeSecretCommand({ SecretId: name }));
+      return (got.Tags ?? []).some((t) => t.Key === "probe");
+    } catch (e) {
+      serviceErrorMeansImplemented(e); // re-throws transport errors
+      return false;
+    } finally {
+      await sm
+        .send(new DeleteSecretCommand({ SecretId: name, ForceDeleteWithoutRecovery: true }))
+        .catch(() => {});
+    }
+  },
+
+  // DescribeRepositories: localstack CE answers ECR with a "pro feature" /
+  // "not yet implemented" error; ministack/kumo/floci (with docker.sock)
+  // implement it.
+  "ecr.repositories": async () => {
+    try {
+      await makeEcrClient().send(new DescribeRepositoriesCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // CreateRepository: separated from describe because floci only creates
+  // repositories when started with the docker socket mounted (it spawns a real
+  // registry container). Create a uniquely-named repo and clean it up.
+  "ecr.create": async () => {
+    const ecr = makeEcrClient();
+    const name = `nlsd-cap-probe-${PROBE_STAMP}`;
+    try {
+      await ecr.send(new CreateRepositoryCommand({ repositoryName: name }));
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+    await ecr
+      .send(new DeleteRepositoryCommand({ repositoryName: name, force: true }))
+      .catch(() => {});
+    return true;
+  },
+
+  // CloudWatch Metrics/Alarms via the legacy Query protocol (`monitoring`
+  // service). kumo does not route the service at all (UnknownService); the SDK
+  // is unusable here because localstack:3 rejects its CBOR encoding, so the
+  // probe (like the app's Rust client) speaks raw Query HTTP.
+  "cloudwatch.metrics": () => cwQueryProbe("ListMetrics"),
+  "cloudwatch.alarms": () => cwQueryProbe("DescribeAlarms"),
+
+  // StartQueryExecution routes on Athena-capable emulators (floci/ministack/
+  // kumo) and returns an id; localstack:3 CE answers "pro feature". The result
+  // set write may still fail later (missing bucket) — that does not affect
+  // whether the operation is implemented, so probing the start call is enough.
+  "athena.query": async () => {
+    try {
+      await makeAthenaClient().send(
+        new StartQueryExecutionCommand({
+          QueryString: "SELECT 1",
+          ResultConfiguration: { OutputLocation: "s3://nlsd-athena-results/" },
+        }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // ListWorkGroups is implemented on floci/ministack; localstack answers "pro
+  // feature" and kumo answers InvalidAction (workgroups unimplemented).
+  "athena.workgroups": async () => {
+    try {
+      await makeAthenaClient().send(new ListWorkGroupsCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // NamedQuery CRUD is ministack-only among the four emulators (floci, kumo and
+  // localstack all reject ListNamedQueries as unsupported/InvalidAction).
+  "athena.namedQueries": async () => {
+    try {
+      await makeAthenaClient().send(new ListNamedQueriesCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // MSK (Kafka). Supported on floci (Redpanda) and ministack; a Pro feature on
+  // localstack:3 (answers "pro feature") and absent on kumo (routes MSK actions
+  // to a 404 "page not found"). A successful ListClusters proves support.
+  "kafka.clusters": async () => {
+    try {
+      await makeKafkaClient().send(new ListKafkaClustersCommand({}));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode;
+      // kumo answers 404 for MSK actions it does not route.
+      if (status === 404) return false;
+      if (status !== undefined) return true;
+      throw e;
+    }
+  },
 };
+
+/** CloudWatch Query-protocol probe: the describe-style call itself must succeed. */
+async function cwQueryProbe(action: string): Promise<boolean> {
+  const { ok, body } = await cwQuery(action);
+  if (isUnsupportedText(body)) return false;
+  if (ok) return true;
+  throw new Error(`capability probe ${action} failed unexpectedly: ${body.slice(0, 300)}`);
+}
 
 const cache = new Map<CapabilityId, Promise<boolean>>();
 
@@ -368,4 +1124,17 @@ export async function expectCoveredIf(family: string, when: CapabilityId[]): Pro
     if (!(await supports(id))) return;
   }
   expectCovered(family);
+}
+
+/** Like expectCovered, but only when NOT all of `when` are supported — for a
+ *  family that is only meaningful on emulators LACKING a capability (e.g. an
+ *  unsupported-banner test that gates `off` a capability and therefore never
+ *  runs on a capable emulator). */
+export async function expectCoveredUnless(family: string, when: CapabilityId[]): Promise<void> {
+  for (const id of when) {
+    if (!(await supports(id))) {
+      expectCovered(family);
+      return;
+    }
+  }
 }

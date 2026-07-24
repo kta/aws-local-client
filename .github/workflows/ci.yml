@@ -57,13 +57,39 @@ jobs:
         working-directory: src-tauri
       - run: cargo test
         working-directory: src-tauri
+      # The `services:` containers start alongside the job but are not health-gated,
+      # so integration tests can fire before dynamodb-local (8000) / ministack (4566)
+      # accept connections and fail with a DispatchFailure. Wait until both answer.
+      - name: Wait for emulators to accept connections
+        run: |
+          for url in http://localhost:8000 http://localhost:4566; do
+            ready=""
+            for i in $(seq 1 60); do
+              if curl -s -o /dev/null "$url"; then ready=1; echo "$url ready"; break; fi
+              echo "waiting for $url ($i/60)"; sleep 2
+            done
+            if [ -z "$ready" ]; then echo "::error::$url never became ready"; exit 1; fi
+          done
+      # The emulators occasionally drop a keep-alive connection under CI load,
+      # surfacing as a transient DispatchFailure. Retry the whole suite a few
+      # times; the tests are deterministic locally, so only infra flakes retry.
       - name: DynamoDB integration tests against dynamodb-local
-        run: cargo test --test integration_ddb -- --ignored
+        run: |
+          for attempt in 1 2 3; do
+            cargo test --test integration_ddb -- --ignored && exit 0
+            echo "::warning::integration_ddb attempt $attempt failed, retrying"; sleep 5
+          done
+          exit 1
         working-directory: src-tauri
         env:
           DDB_ENDPOINT: http://localhost:8000
       - name: SQS/SNS/S3/RDS integration tests against ministack
-        run: cargo test --test integration_sqs --test integration_sns --test integration_s3 --test integration_rds -- --ignored
+        run: |
+          for attempt in 1 2 3; do
+            cargo test --test integration_sqs --test integration_sns --test integration_s3 --test integration_rds -- --ignored && exit 0
+            echo "::warning::service integration attempt $attempt failed, retrying"; sleep 5
+          done
+          exit 1
         working-directory: src-tauri
         env:
           EMU_ENDPOINT: http://localhost:4566

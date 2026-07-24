@@ -199,6 +199,31 @@ export async function navigateHash(path: string): Promise<void> {
   }, path);
 }
 
+/**
+ * Re-run a navigation until a target element appears. Some emulators are
+ * eventually consistent: a resource created via the SDK can take a few seconds
+ * to surface in a list the app fetches once on mount, and re-setting the same
+ * hash is a no-op (no remount, no refetch). This bounces through home so the
+ * hash actually changes, re-runs `goto` (a fresh mount + refetch), and retries
+ * until `testid` is displayed. Mirrors the inline retry lambda R51 uses.
+ */
+export async function gotoUntil(
+  goto: () => Promise<void>,
+  testid: string,
+  { timeout = 30000, interval = 2000 }: { timeout?: number; interval?: number } = {},
+): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      await navigateHash("#/");
+      await goto();
+      return $(T(testid))
+        .isDisplayed()
+        .catch(() => false);
+    },
+    { timeout, interval, timeoutMsg: `${testid} never appeared after re-navigation` },
+  );
+}
+
 export async function gotoTables(): Promise<void> {
   await navigateHash("#/dynamodb/tables");
   await waitDisplayed(T("tables-heading"));
@@ -680,6 +705,25 @@ export async function gotoBucketBrowser(bucket: string, prefix?: string): Promis
   await clickT("tab-objects");
 }
 
+// --- EventBridge navigation (R63-R65) ----------------------------------------
+
+export async function gotoEventBridgeDashboard(): Promise<void> {
+  await navigateHash("#/eventbridge");
+  await waitDisplayed(T("eb-dashboard-heading"));
+}
+
+export async function gotoEventBuses(): Promise<void> {
+  await navigateHash("#/eventbridge/buses");
+  await waitDisplayed(T("buses-heading"));
+  await waitDisplayed(T("buses-count"));
+}
+
+export async function gotoEventRules(): Promise<void> {
+  await navigateHash("#/eventbridge/rules");
+  await waitDisplayed(T("rules-heading"));
+  await waitDisplayed(T("rules-bus-select"));
+}
+
 export async function gotoInstances(): Promise<void> {
   await navigateHash("#/rds/instances");
   await waitDisplayed(T("instances-heading"));
@@ -698,6 +742,225 @@ export async function gotoSnapshots(): Promise<void> {
 export async function gotoParameterGroups(): Promise<void> {
   await navigateHash("#/rds/parameter-groups");
   await waitDisplayed(T("pgroups-heading"));
+}
+
+// --- API Gateway navigation (R56-R59) ----------------------------------------
+
+export async function gotoApigwDashboard(): Promise<void> {
+  await navigateHash("#/api-gateway");
+  await waitDisplayed(T("apigw-dashboard-heading"));
+}
+
+export async function gotoApis(): Promise<void> {
+  await navigateHash("#/api-gateway/apis");
+  await waitDisplayed(T("apis-heading"));
+  await waitDisplayed(T("apis-count"));
+}
+
+export async function gotoApiDetail(id: string): Promise<void> {
+  await navigateHash(`#/api-gateway/apis/${encodeURIComponent(id)}`);
+  await waitDisplayed(T("tab-resources"));
+}
+
+export async function gotoApiKeys(): Promise<void> {
+  await navigateHash("#/api-gateway/api-keys");
+  await waitDisplayed(T("api-keys-heading"));
+}
+
+// --- Cognito navigation (R60-R62) --------------------------------------------
+
+export async function gotoCognitoDashboard(): Promise<void> {
+  await navigateHash("#/cognito");
+  await waitDisplayed(T("cognito-dashboard-heading"));
+}
+
+export async function gotoUserPools(): Promise<void> {
+  await navigateHash("#/cognito/user-pools");
+  await waitDisplayed(T("user-pools-heading"));
+}
+
+export async function gotoUserPoolDetail(id: string): Promise<void> {
+  await navigateHash(`#/cognito/user-pools/${encodeURIComponent(id)}`);
+  await waitDisplayed(T("tab-users"));
+}
+
+// --- Secrets Manager (R66-R67) -----------------------------------------------
+
+export async function gotoSecrets(): Promise<void> {
+  await navigateHash("#/secrets-manager/secrets");
+  await waitDisplayed(T("secrets-heading"));
+  await waitDisplayed(T("secrets-count"));
+}
+
+export async function gotoSecretDetail(name: string): Promise<void> {
+  await navigateHash(`#/secrets-manager/secrets/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("secret-value-toggle"));
+}
+
+// --- ElastiCache navigation (R68-R70) ---------------------------------------
+
+export async function gotoElastiCacheDashboard(): Promise<void> {
+  await navigateHash("#/elasticache");
+  await waitDisplayed(T("elasticache-dashboard-heading"));
+}
+
+export async function gotoCaches(): Promise<void> {
+  await navigateHash("#/elasticache/caches");
+  await waitDisplayed(T("caches-heading"));
+}
+
+export async function gotoCfnDashboard(): Promise<void> {
+  await navigateHash("#/cloudformation");
+  await waitDisplayed(T("cfn-dashboard-heading"));
+}
+
+export async function gotoStacks(): Promise<void> {
+  await navigateHash("#/cloudformation/stacks");
+  await waitDisplayed(T("stacks-heading"));
+}
+
+export async function gotoStackDetail(name: string): Promise<void> {
+  await navigateHash(`#/cloudformation/stacks/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("stack-detail-heading"));
+}
+
+// --- ECS navigation (R75-R77) ------------------------------------------------
+
+export async function gotoEcsDashboard(): Promise<void> {
+  await navigateHash("#/ecs");
+  await waitDisplayed(T("ecs-dashboard-heading"));
+}
+
+export async function gotoClusters(): Promise<void> {
+  await navigateHash("#/ecs/clusters");
+  await waitDisplayed(T("ecs-clusters-heading"));
+}
+
+export async function gotoClusterDetail(name: string): Promise<void> {
+  await navigateHash(`#/ecs/clusters/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("ecs-cluster-detail-heading"));
+}
+
+export async function gotoTaskDefinitions(): Promise<void> {
+  await navigateHash("#/ecs/task-definitions");
+  await waitDisplayed(T("ecs-taskdefs-heading"));
+}
+
+// --- ECR navigation (R78-R79) ------------------------------------------------
+
+export async function gotoRepositories(): Promise<void> {
+  // Bounce through another hash first so navigating to the repositories page
+  // always remounts it (a repeat navigateHash to the same hash is a no-op and
+  // would keep a stale list from a previous test).
+  await navigateHash("#/ecr");
+  await navigateHash("#/ecr/repositories");
+  await waitDisplayed(T("ecr-repositories-heading"));
+}
+
+export async function gotoRepositoryDetail(name: string): Promise<void> {
+  await navigateHash(`#/ecr/repositories/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("ecr-detail-heading"));
+}
+
+// --- CloudWatch navigation (R80-R83) -----------------------------------------
+
+export async function gotoCloudwatchDashboard(): Promise<void> {
+  await navigateHash("#/cloudwatch");
+  await waitDisplayed(T("cloudwatch-dashboard-heading"));
+}
+
+export async function gotoLogGroups(): Promise<void> {
+  await navigateHash("#/cloudwatch/log-groups");
+  await waitDisplayed(T("log-groups-heading"));
+  await waitDisplayed(T("log-groups-count"));
+}
+
+export async function gotoLogGroupDetail(name: string): Promise<void> {
+  await navigateHash(`#/cloudwatch/log-groups/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("log-group-detail-heading"));
+}
+
+export async function gotoMetrics(): Promise<void> {
+  await navigateHash("#/cloudwatch/metrics");
+  await waitDisplayed(T("metrics-heading"));
+}
+
+export async function gotoAlarms(): Promise<void> {
+  await navigateHash("#/cloudwatch/alarms");
+  await waitDisplayed(T("alarms-heading"));
+}
+
+// --- Step Functions (R84-R86) ------------------------------------------------
+
+export async function gotoSfnDashboard(): Promise<void> {
+  await navigateHash("#/step-functions");
+  await waitDisplayed(T("step-functions-dashboard-heading"));
+}
+
+export async function gotoStateMachines(): Promise<void> {
+  await navigateHash("#/step-functions/state-machines");
+  await waitDisplayed(T("state-machines-heading"));
+  await waitDisplayed(T("state-machines-count"));
+}
+
+export async function gotoStateMachineDetail(name: string): Promise<void> {
+  await navigateHash(`#/step-functions/state-machines/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("tab-executions"));
+}
+
+export async function gotoAthenaEditor(): Promise<void> {
+  await navigateHash("#/athena");
+  await waitDisplayed(T("athena-heading"));
+}
+
+export async function gotoAthenaSavedQueries(): Promise<void> {
+  await navigateHash("#/athena/saved-queries");
+  await waitDisplayed(T("saved-queries-heading"));
+}
+
+export async function gotoAthenaWorkgroups(): Promise<void> {
+  await navigateHash("#/athena/workgroups");
+  await waitDisplayed(T("workgroups-heading"));
+}
+
+// --- MSK navigation (R92-R93) ------------------------------------------------
+
+export async function gotoMskDashboard(): Promise<void> {
+  await navigateHash("#/msk");
+  await waitDisplayed(T("msk-dashboard-heading"));
+}
+
+export async function gotoMskClusters(): Promise<void> {
+  await navigateHash("#/msk/clusters");
+  await waitDisplayed(T("clusters-heading"));
+}
+
+export async function gotoMskClusterDetail(name: string): Promise<void> {
+  await navigateHash(`#/msk/clusters/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("cluster-detail-heading"));
+}
+
+// --- Route 53 navigation (R96-R98) -------------------------------------------
+
+export async function gotoRoute53Dashboard(): Promise<void> {
+  await navigateHash("#/route53");
+  await waitDisplayed(T("route53-dashboard-heading"));
+}
+
+export async function gotoHostedZones(): Promise<void> {
+  await navigateHash("#/route53/hosted-zones");
+  await waitDisplayed(T("zones-heading"));
+  await waitDisplayed(T("zones-count"));
+}
+
+export async function gotoHostedZoneDetail(zoneId: string): Promise<void> {
+  await navigateHash(`#/route53/hosted-zones/${encodeURIComponent(zoneId)}`);
+  await waitDisplayed(T("record-create"));
+}
+
+export async function gotoHealthChecks(): Promise<void> {
+  await navigateHash("#/route53/health-checks");
+  await waitDisplayed(T("healthchecks-heading"));
 }
 
 export { $, $$, browser, expect };
