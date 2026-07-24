@@ -128,6 +128,17 @@ pub fn run() {
             commands::lambda::lambda_list_layers,
             commands::lambda::lambda_publish_layer_version,
             commands::lambda::lambda_delete_layer_version,
+            commands::apigateway::apigw_list_apis,
+            commands::apigateway::apigw_create_api,
+            commands::apigateway::apigw_delete_api,
+            commands::apigateway::apigw_get_resources,
+            commands::apigateway::apigw_create_resource,
+            commands::apigateway::apigw_put_method,
+            commands::apigateway::apigw_create_deployment,
+            commands::apigateway::apigw_list_stages,
+            commands::apigateway::apigw_list_api_keys,
+            commands::apigateway::apigw_create_api_key,
+            commands::apigateway::apigw_delete_api_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
