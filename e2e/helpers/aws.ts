@@ -8,6 +8,7 @@ import { ECSClient } from "@aws-sdk/client-ecs";
 import { ECRClient } from "@aws-sdk/client-ecr";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { OpenSearchClient } from "@aws-sdk/client-opensearch";
+import { AthenaClient } from "@aws-sdk/client-athena";
 import { RDSClient } from "@aws-sdk/client-rds";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
@@ -138,6 +139,8 @@ export function makeOpenSearchClient(
   region = E2E_REGION,
 ): OpenSearchClient {
   return new OpenSearchClient({ endpoint, region, credentials });
+export function makeAthenaClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): AthenaClient {
+  return new AthenaClient({ endpoint, region, credentials });
 }
 
 /** True if an SDK error looks like "this emulator does not implement the op". */

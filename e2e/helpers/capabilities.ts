@@ -1,4 +1,9 @@
 import {
+  ListNamedQueriesCommand,
+  ListWorkGroupsCommand,
+  StartQueryExecutionCommand,
+} from "@aws-sdk/client-athena";
+import {
   ExecuteStatementCommand,
   ListBackupsCommand,
 } from "@aws-sdk/client-dynamodb";
@@ -68,6 +73,7 @@ import {
   makeEcsClient,
   makeEcrClient,
   makeOpenSearchClient,
+  makeAthenaClient,
   makeS3Client,
   makeSecretsManagerClient,
   makeSfnClient,
@@ -131,6 +137,9 @@ export type CapabilityId =
   | "cloudwatch.alarms";
   | "opensearch.domains"
   | "opensearch.create";
+  | "athena.query"
+  | "athena.workgroups"
+  | "athena.namedQueries";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators.
  *  `unknown service` covers kumo, which does not route the CloudWatch
@@ -642,6 +651,18 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
   "ecr.repositories": async () => {
     try {
       await makeEcrClient().send(new DescribeRepositoriesCommand({}));
+  // StartQueryExecution routes on Athena-capable emulators (floci/ministack/
+  // kumo) and returns an id; localstack:3 CE answers "pro feature". The result
+  // set write may still fail later (missing bucket) — that does not affect
+  // whether the operation is implemented, so probing the start call is enough.
+  "athena.query": async () => {
+    try {
+      await makeAthenaClient().send(
+        new StartQueryExecutionCommand({
+          QueryString: "SELECT 1",
+          ResultConfiguration: { OutputLocation: "s3://nlsd-athena-results/" },
+        }),
+      );
       return true;
     } catch (e) {
       return serviceErrorMeansImplemented(e);
@@ -670,6 +691,27 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
   // probe (like the app's Rust client) speaks raw Query HTTP.
   "cloudwatch.metrics": () => cwQueryProbe("ListMetrics"),
   "cloudwatch.alarms": () => cwQueryProbe("DescribeAlarms"),
+  // ListWorkGroups is implemented on floci/ministack; localstack answers "pro
+  // feature" and kumo answers InvalidAction (workgroups unimplemented).
+  "athena.workgroups": async () => {
+    try {
+      await makeAthenaClient().send(new ListWorkGroupsCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // NamedQuery CRUD is ministack-only among the four emulators (floci, kumo and
+  // localstack all reject ListNamedQueries as unsupported/InvalidAction).
+  "athena.namedQueries": async () => {
+    try {
+      await makeAthenaClient().send(new ListNamedQueriesCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
 };
 
 /** CloudWatch Query-protocol probe: the describe-style call itself must succeed. */

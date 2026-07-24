@@ -865,6 +865,19 @@ export async function gotoStateMachines(): Promise<void> {
 export async function gotoStateMachineDetail(name: string): Promise<void> {
   await navigateHash(`#/step-functions/state-machines/${encodeURIComponent(name)}`);
   await waitDisplayed(T("tab-executions"));
+export async function gotoAthenaEditor(): Promise<void> {
+  await navigateHash("#/athena");
+  await waitDisplayed(T("athena-heading"));
+}
+
+export async function gotoAthenaSavedQueries(): Promise<void> {
+  await navigateHash("#/athena/saved-queries");
+  await waitDisplayed(T("saved-queries-heading"));
+}
+
+export async function gotoAthenaWorkgroups(): Promise<void> {
+  await navigateHash("#/athena/workgroups");
+  await waitDisplayed(T("workgroups-heading"));
 }
 
 export { $, $$, browser, expect };

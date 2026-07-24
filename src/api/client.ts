@@ -4,6 +4,7 @@ import { apigateway } from "./apigateway";
 import { cognito } from "./cognito";
 import { cloudformation } from "./cloudformation";
 import { cloudwatch } from "./cloudwatch";
+import { athena } from "./athena";
 import { ddb } from "./dynamodb";
 import { lambda } from "./lambda";
 import { eventbridge } from "./eventbridge";
@@ -50,4 +51,5 @@ export const api = {
   cloudwatch,
   stepfunctions,
   opensearch,
+  athena,
 };

@@ -231,6 +231,15 @@ pub fn run() {
             commands::opensearch::opensearch_create_domain,
             commands::opensearch::opensearch_delete_domain,
             commands::opensearch::opensearch_get_domain,
+            commands::athena::athena_start_query,
+            commands::athena::athena_get_query_execution,
+            commands::athena::athena_get_query_results,
+            commands::athena::athena_list_workgroups,
+            commands::athena::athena_create_workgroup,
+            commands::athena::athena_delete_workgroup,
+            commands::athena::athena_list_named_queries,
+            commands::athena::athena_create_named_query,
+            commands::athena::athena_delete_named_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
