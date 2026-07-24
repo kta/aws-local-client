@@ -14,6 +14,7 @@ import { cloudformationService } from "../features/cloudformation/service";
 import { ecsService } from "../features/ecs/service";
 import { ecrService } from "../features/ecr/service";
 import { cloudwatchService } from "../features/cloudwatch/service";
+import { stepFunctionsService } from "../features/step-functions/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -41,6 +42,7 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["ecs", "ECS"],
   ["eks", "EKS"],
   ["step-functions", "Step Functions"],
+  ["eventbridge", "EventBridge"],
   ["scheduler", "EventBridge Scheduler"],
   ["pipes", "EventBridge Pipes"],
   ["kinesis", "Kinesis"],
@@ -118,6 +120,7 @@ export const SERVICES: ServiceDefinition[] = [
   ecsService,
   ecrService,
   cloudwatchService,
+  stepFunctionsService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 

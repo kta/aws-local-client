@@ -44,6 +44,7 @@ import { DescribeReplicationGroupsCommand } from "@aws-sdk/client-elasticache";
   DescribeStacksCommand,
 } from "@aws-sdk/client-cloudformation";
 import { ListClustersCommand } from "@aws-sdk/client-ecs";
+import { UpdateStateMachineCommand } from "@aws-sdk/client-sfn";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import {
   CreateApiKeyCommand,
@@ -64,6 +65,7 @@ import {
   makeEcrClient,
   makeS3Client,
   makeSecretsManagerClient,
+  makeSfnClient,
   makeSnsClient,
   makeSqsClient,
 } from "./aws";
@@ -105,6 +107,7 @@ export type CapabilityId =
   | "elasticache.describe"
   | "cloudformation.resourceCreation"
   | "sqs.dlqSources"
+  | "sfn.updateStateMachine"
   | "sns.topicTags"
   | "s3.bucketTagging"
   | "s3.folderKeys"
@@ -312,6 +315,25 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       await makeSqsClient().send(
         new ListDeadLetterSourceQueuesCommand({
           QueueUrl: `${E2E_ENDPOINT}/000000000000/nlsd-cap-probe-missing`,
+        }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // UpdateStateMachine is unimplemented on floci (UnsupportedOperation) and kumo
+  // (InvalidAction). A missing-ARN probe distinguishes cleanly: localstack /
+  // ministack answer StateMachineDoesNotExist (implemented), the others answer
+  // an unsupported-shaped error.
+  "sfn.updateStateMachine": async () => {
+    try {
+      await makeSfnClient().send(
+        new UpdateStateMachineCommand({
+          stateMachineArn:
+            "arn:aws:states:us-east-1:000000000000:stateMachine:nlsd-cap-probe-missing",
+          definition: '{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}',
         }),
       );
       return true;

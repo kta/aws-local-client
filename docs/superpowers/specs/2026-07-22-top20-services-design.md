@@ -286,7 +286,11 @@ Metrics/Alarms は §2.1-1 の判定に従い SDK(aws-sdk-cloudwatch)または
 - R85: 詳細「実行」タブ: 実行開始(JSON 入力)→ 実行一覧(ステータス)→ 実行詳細
   (ステータス / 入力 / 出力 / イベント履歴テーブル)。Pass ステートの ASL で
   出力 = 入力の伝播を検証
-- R86: 「定義」タブ: ASL 表示 + 更新(UpdateStateMachine → SDK 検証)
+- R86: 「定義」タブ: ASL 表示 + 更新(UpdateStateMachine → SDK 検証)。
+  **2026-07-22 実測: UpdateStateMachine は floci(UnsupportedOperation)/ kumo
+  (InvalidAction)で非対応** → cap `sfn.updateStateMachine` でゲート + 対称テスト
+  (非対応側は `sfn-update-unsupported` 案内文)。list/create/delete/describe と
+  実行系(R84/R85)は 4 エミュレータ対応で無条件
 
 Rust `commands/stepfunctions.rs`(SDK: aws-sdk-sfn):
 `sfn_list_state_machines` `sfn_create_state_machine` `sfn_update_state_machine`

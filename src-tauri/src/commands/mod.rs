@@ -14,3 +14,4 @@ pub mod s3;
 pub mod secretsmanager;
 pub mod sns;
 pub mod sqs;
+pub mod stepfunctions;

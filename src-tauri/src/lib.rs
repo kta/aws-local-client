@@ -218,6 +218,15 @@ pub fn run() {
             commands::cloudwatch_query::cw_describe_alarms,
             commands::cloudwatch_query::cw_put_metric_alarm,
             commands::cloudwatch_query::cw_delete_alarms,
+            commands::stepfunctions::sfn_list_state_machines,
+            commands::stepfunctions::sfn_create_state_machine,
+            commands::stepfunctions::sfn_update_state_machine,
+            commands::stepfunctions::sfn_delete_state_machine,
+            commands::stepfunctions::sfn_describe_state_machine,
+            commands::stepfunctions::sfn_start_execution,
+            commands::stepfunctions::sfn_list_executions,
+            commands::stepfunctions::sfn_describe_execution,
+            commands::stepfunctions::sfn_get_execution_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

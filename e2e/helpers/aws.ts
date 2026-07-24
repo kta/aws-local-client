@@ -10,6 +10,7 @@ import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { RDSClient } from "@aws-sdk/client-rds";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
+import { SFNClient } from "@aws-sdk/client-sfn";
 import { SNSClient } from "@aws-sdk/client-sns";
 import { SQSClient } from "@aws-sdk/client-sqs";
 
@@ -129,6 +130,8 @@ export function cwQuery(
   params: Record<string, string> = {},
 ): Promise<{ ok: boolean; body: string }> {
   return awsQuery("monitoring", action, params, "2010-08-01");
+export function makeSfnClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): SFNClient {
+  return new SFNClient({ endpoint, region, credentials });
 }
 
 /** True if an SDK error looks like "this emulator does not implement the op". */
