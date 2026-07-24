@@ -57,6 +57,19 @@ jobs:
         working-directory: src-tauri
       - run: cargo test
         working-directory: src-tauri
+      # The `services:` containers start alongside the job but are not health-gated,
+      # so integration tests can fire before dynamodb-local (8000) / ministack (4566)
+      # accept connections and fail with a DispatchFailure. Wait until both answer.
+      - name: Wait for emulators to accept connections
+        run: |
+          for url in http://localhost:8000 http://localhost:4566; do
+            ready=""
+            for i in $(seq 1 60); do
+              if curl -s -o /dev/null "$url"; then ready=1; echo "$url ready"; break; fi
+              echo "waiting for $url ($i/60)"; sleep 2
+            done
+            if [ -z "$ready" ]; then echo "::error::$url never became ready"; exit 1; fi
+          done
       - name: DynamoDB integration tests against dynamodb-local
         run: cargo test --test integration_ddb -- --ignored
         working-directory: src-tauri
