@@ -4,6 +4,7 @@ import { sqsService } from "../features/sqs/service";
 import { snsService } from "../features/sns/service";
 import { s3Service } from "../features/s3/service";
 import { rdsService } from "../features/rds/service";
+import { lambdaService } from "../features/lambda/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -26,7 +27,6 @@ const comingSoon = (id: string, name: string): ServiceDefinition => ({
 // API for, minus the five implemented above. Sub-APIs are folded into their
 // console-level service (IoT Data -> IoT Core, SES v1/v2 -> SES, ...).
 const FLOCI_COMING_SOON: [string, string][] = [
-  ["lambda", "Lambda"],
   ["ec2", "EC2"],
   ["ecs", "ECS"],
   ["ecr", "ECR"],
@@ -100,6 +100,7 @@ export const SERVICES: ServiceDefinition[] = [
   snsService,
   s3Service,
   rdsService,
+  lambdaService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 
