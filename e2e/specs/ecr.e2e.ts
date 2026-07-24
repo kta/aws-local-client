@@ -16,7 +16,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeEcrClient } from "../helpers/aws";
-import { expectCovered, gate } from "../helpers/capabilities";
+import { expectCovered, expectCoveredIf, gate } from "../helpers/capabilities";
 
 /**
  * ECR requirements (R78-R79), gated per capability (see helpers/capabilities.ts).
@@ -65,7 +65,10 @@ describe("ecr", () => {
         .catch(() => {});
     }
     expectCovered("R78");
-    expectCovered("R79");
+    // R79 (repository detail image list) needs a created repository, so it is
+    // only meaningful where create works; on the describe-ok/create-off middle
+    // case (socket-less floci) it is legitimately unverifiable.
+    await expectCoveredIf("R79", ["ecr.create"]);
   });
 
   // --- R78: repository CRUD vs unsupported emulators --------------------------
@@ -104,12 +107,16 @@ describe("ecr", () => {
         timeoutMsg: `repository ${name} was not removed`,
       });
 
-      // SDK back-check: the repository is gone.
+      // SDK back-check: the repository is gone. AWS/ministack/floci answer a
+      // RepositoryNotFound throw for a deleted repo; kumo instead returns an
+      // empty repository list, so treat "absent from the results" as gone too.
       await browser.waitUntil(
         async () => {
           try {
-            await ecr.send(new DescribeRepositoriesCommand({ repositoryNames: [name] }));
-            return false;
+            const out = await ecr.send(
+              new DescribeRepositoriesCommand({ repositoryNames: [name] }),
+            );
+            return !(out.repositories ?? []).some((r) => r.repositoryName === name);
           } catch {
             return true;
           }
