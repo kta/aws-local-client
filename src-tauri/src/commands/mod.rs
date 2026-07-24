@@ -9,6 +9,7 @@ pub mod eventbridge;
 pub mod elasticache;
 pub mod ecs;
 pub mod ecr;
+pub mod opensearch;
 pub mod rds;
 pub mod s3;
 pub mod secretsmanager;

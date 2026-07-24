@@ -7,6 +7,7 @@ import { CloudFormationClient } from "@aws-sdk/client-cloudformation";
 import { ECSClient } from "@aws-sdk/client-ecs";
 import { ECRClient } from "@aws-sdk/client-ecr";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
+import { OpenSearchClient } from "@aws-sdk/client-opensearch";
 import { RDSClient } from "@aws-sdk/client-rds";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
@@ -132,6 +133,11 @@ export function cwQuery(
   return awsQuery("monitoring", action, params, "2010-08-01");
 export function makeSfnClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): SFNClient {
   return new SFNClient({ endpoint, region, credentials });
+export function makeOpenSearchClient(
+  endpoint = E2E_ENDPOINT,
+  region = E2E_REGION,
+): OpenSearchClient {
+  return new OpenSearchClient({ endpoint, region, credentials });
 }
 
 /** True if an SDK error looks like "this emulator does not implement the op". */

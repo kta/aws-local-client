@@ -45,6 +45,10 @@ import { DescribeReplicationGroupsCommand } from "@aws-sdk/client-elasticache";
 } from "@aws-sdk/client-cloudformation";
 import { ListClustersCommand } from "@aws-sdk/client-ecs";
 import { UpdateStateMachineCommand } from "@aws-sdk/client-sfn";
+  CreateDomainCommand,
+  DeleteDomainCommand,
+  ListDomainNamesCommand,
+} from "@aws-sdk/client-opensearch";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import {
   CreateApiKeyCommand,
@@ -63,6 +67,7 @@ import {
   makeCfnClient,
   makeEcsClient,
   makeEcrClient,
+  makeOpenSearchClient,
   makeS3Client,
   makeSecretsManagerClient,
   makeSfnClient,
@@ -124,6 +129,8 @@ export type CapabilityId =
   | "ecr.create";
   | "cloudwatch.metrics"
   | "cloudwatch.alarms";
+  | "opensearch.domains"
+  | "opensearch.create";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators.
  *  `unknown service` covers kumo, which does not route the CloudWatch
@@ -303,10 +310,33 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
   "ecs.clusters": async () => {
     try {
       await makeEcsClient().send(new ListClustersCommand({}));
+  // Domain describe: ListDomainNames must be routed. kumo answers unsupported
+  // (its console has no OpenSearch); a NotFound-style/other service error proves
+  // the operation exists.
+  "opensearch.domains": async () => {
+    try {
+      await makeOpenSearchClient().send(new ListDomainNamesCommand({}));
       return true;
     } catch (e) {
       return serviceErrorMeansImplemented(e);
     }
+  },
+
+  // Domain create needs a real OpenSearch node: floci only creates one when
+  // started with the docker socket mounted (T0). Any create rejection — the
+  // socket-less "cannot start container" error included — counts as
+  // not-create-capable, mirroring the rds.instances.create probe. The probe
+  // domain is deleted promptly because floci spins up a heavy real container.
+  "opensearch.create": async () => {
+    const os = makeOpenSearchClient();
+    const name = `nlsd-os-probe-${PROBE_STAMP % 100000}`;
+    try {
+      await os.send(new CreateDomainCommand({ DomainName: name }));
+    } catch {
+      return false;
+    }
+    await os.send(new DeleteDomainCommand({ DomainName: name })).catch(() => {});
+    return true;
   },
 
   // A missing queue is enough: QueueDoesNotExist proves the action is routed.

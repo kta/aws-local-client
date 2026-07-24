@@ -227,6 +227,10 @@ pub fn run() {
             commands::stepfunctions::sfn_list_executions,
             commands::stepfunctions::sfn_describe_execution,
             commands::stepfunctions::sfn_get_execution_history,
+            commands::opensearch::opensearch_list_domains,
+            commands::opensearch::opensearch_create_domain,
+            commands::opensearch::opensearch_delete_domain,
+            commands::opensearch::opensearch_get_domain,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
