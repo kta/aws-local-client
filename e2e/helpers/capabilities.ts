@@ -27,6 +27,11 @@ import {
   ListGroupsCommand,
   ListUserPoolsCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
+  CreateSecretCommand,
+  DeleteSecretCommand,
+  DescribeSecretCommand,
+  TagResourceCommand as SecretsTagResourceCommand,
+} from "@aws-sdk/client-secrets-manager";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import {
   CreateApiKeyCommand,
@@ -40,6 +45,7 @@ import {
   makeApiGatewayClient,
   makeCognitoClient,
   makeS3Client,
+  makeSecretsManagerClient,
   makeSnsClient,
   makeSqsClient,
 } from "./aws";
@@ -89,6 +95,7 @@ export type CapabilityId =
   | "cognito.userPools"
   | "cognito.groups"
   | "cognito.adminUserState";
+  | "secretsmanager.tags";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -477,6 +484,30 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       await fetch(markerUrl, { method: "DELETE", headers: { authorization } }).catch(() => {});
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: "probe" })).catch(() => {});
       await s3.send(new DeleteBucketCommand({ Bucket: bucket })).catch(() => {});
+    }
+  },
+
+  // Functional round-trip: kumo answers TagResource/UntagResource with
+  // InvalidAction ("is not valid"), so only "the tag comes back from
+  // DescribeSecret" proves the capability. DescribeSecret itself works on all
+  // four emulators, so tag LISTING is unconditional; only the mutations gate.
+  "secretsmanager.tags": async () => {
+    const sm = makeSecretsManagerClient();
+    const name = `nlsd-cap-probe-sm-${PROBE_STAMP}`;
+    await sm.send(new CreateSecretCommand({ Name: name, SecretString: "{}" }));
+    try {
+      await sm.send(
+        new SecretsTagResourceCommand({ SecretId: name, Tags: [{ Key: "probe", Value: "1" }] }),
+      );
+      const got = await sm.send(new DescribeSecretCommand({ SecretId: name }));
+      return (got.Tags ?? []).some((t) => t.Key === "probe");
+    } catch (e) {
+      serviceErrorMeansImplemented(e); // re-throws transport errors
+      return false;
+    } finally {
+      await sm
+        .send(new DeleteSecretCommand({ SecretId: name, ForceDeleteWithoutRecovery: true }))
+        .catch(() => {});
     }
   },
 };

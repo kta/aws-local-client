@@ -7,6 +7,7 @@ import { lambda } from "./lambda";
 import { eventbridge } from "./eventbridge";
 import { rds } from "./rds";
 import { s3 } from "./s3";
+import { secretsManager } from "./secretsmanager";
 import { sns } from "./sns";
 import { sqs } from "./sqs";
 
@@ -34,4 +35,5 @@ export const api = {
   apigateway,
   cognito,
   eventbridge,
+  secretsManager,
 };

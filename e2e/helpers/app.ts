@@ -755,6 +755,17 @@ export async function gotoUserPools(): Promise<void> {
 export async function gotoUserPoolDetail(id: string): Promise<void> {
   await navigateHash(`#/cognito/user-pools/${encodeURIComponent(id)}`);
   await waitDisplayed(T("tab-users"));
+// --- Secrets Manager (R66-R67) -----------------------------------------------
+
+export async function gotoSecrets(): Promise<void> {
+  await navigateHash("#/secrets-manager/secrets");
+  await waitDisplayed(T("secrets-heading"));
+  await waitDisplayed(T("secrets-count"));
+}
+
+export async function gotoSecretDetail(name: string): Promise<void> {
+  await navigateHash(`#/secrets-manager/secrets/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("secret-value-toggle"));
 }
 
 export { $, $$, browser, expect };

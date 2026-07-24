@@ -167,6 +167,15 @@ pub fn run() {
             commands::eventbridge::events_put_target,
             commands::eventbridge::events_remove_target,
             commands::eventbridge::events_put_events,
+            commands::secretsmanager::secrets_list,
+            commands::secretsmanager::secrets_create,
+            commands::secretsmanager::secrets_describe,
+            commands::secretsmanager::secrets_get_value,
+            commands::secretsmanager::secrets_put_value,
+            commands::secretsmanager::secrets_list_versions,
+            commands::secretsmanager::secrets_delete,
+            commands::secretsmanager::secrets_tag,
+            commands::secretsmanager::secrets_untag,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

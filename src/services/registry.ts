@@ -8,6 +8,7 @@ import { lambdaService } from "../features/lambda/service";
 import { apiGatewayService } from "../features/api-gateway/service";
 import { cognitoService } from "../features/cognito/service";
 import { eventbridgeService } from "../features/eventbridge/service";
+import { secretsManagerService } from "../features/secrets-manager/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -40,11 +41,12 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["kinesis", "Kinesis"],
   ["firehose", "Data Firehose"],
   ["cloudwatch", "CloudWatch"],
-  ["secrets-manager", "Secrets Manager"],
   ["ssm", "Systems Manager"],
   ["kms", "KMS"],
   ["iam", "IAM"],
   ["cloudformation", "CloudFormation"],
+  // secrets-manager promoted to a real service below.
+  ["api-gateway", "API Gateway"],
   ["appsync", "AppSync"],
   ["ses", "SES"],
   ["route53", "Route 53"],
@@ -104,6 +106,7 @@ export const SERVICES: ServiceDefinition[] = [
   apiGatewayService,
   cognitoService,
   eventbridgeService,
+  secretsManagerService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 
