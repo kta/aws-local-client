@@ -1,7 +1,7 @@
 # AGENTS.md
 
 neo-localstack-desktop is an AWS-console-style desktop client for local AWS emulators
-(LocalStack / floci / ministack / amazon dynamodb-local), selected by endpoint URL.
+(LocalStack / floci / ministack / kumo / amazon dynamodb-local), selected by endpoint URL.
 Stack: Tauri 2 shell, React 19 + TypeScript (Vite) frontend, Rust backend using aws-sdk-dynamodb.
 Phase 1 covers DynamoDB only. UI copy is Japanese; the codebase is English.
 
@@ -42,7 +42,7 @@ E2E (full-app WebDriver suite; runs against a live emulator via `E2E_ENDPOINT`, 
 ```bash
 # 1. Build the debug app binary (cross-env keeps this working on Windows too).
 npm run e2e:build
-# 2. Start + wait for an emulator (<localstack|floci|ministack|ministack-pip>).
+# 2. Start + wait for an emulator (<localstack|floci|ministack|kumo|ministack-pip>).
 #    Set EMU_PORT to publish on a free host port when 4566 is taken.
 scripts/emulator.sh start ministack && scripts/emulator.sh wait ministack
 # 3. Run the suite against that emulator's endpoint.

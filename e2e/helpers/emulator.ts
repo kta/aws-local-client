@@ -5,7 +5,6 @@ import {
   DeleteTableCommand,
   DynamoDBClient,
   GetItemCommand,
-  ListBackupsCommand,
   ListTablesCommand,
   waitUntilTableExists,
   type AttributeValue,
@@ -140,24 +139,6 @@ export async function putItems(
         await new Promise((r) => setTimeout(r, 200));
       }
     }
-  }
-}
-
-/**
- * R20/R21 probe: does this emulator implement the DynamoDB backup API?
- * ministack supports it; localstack:3 / floci / dynamodb-local answer
- * UnknownOperationException / "not supported". Any OTHER error is re-thrown so a
- * real outage is not silently treated as "unsupported".
- */
-export async function supportsBackups(client = makeClient()): Promise<boolean> {
-  try {
-    await client.send(new ListBackupsCommand({}));
-    return true;
-  } catch (e) {
-    const err = e as { name?: string; message?: string };
-    const text = `${err.name ?? ""} ${err.message ?? ""}`;
-    if (/unknown ?operation|not supported/i.test(text)) return false;
-    throw e;
   }
 }
 

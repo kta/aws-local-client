@@ -23,6 +23,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeSqsClient } from "../helpers/aws";
+import { expectCovered, gate } from "../helpers/capabilities";
 
 /**
  * SQS requirements (R22-R25). Fixtures are seeded / verified directly through
@@ -36,7 +37,8 @@ import { makeSqsClient } from "../helpers/aws";
  *       the create modal on the queues page.
  *   R37 Tags tab lists an SDK-seeded tag, adds one via the UI and removes one.
  *   R38 Dead-letter tab shows a source queue's redrive policy and, on the DLQ,
- *       either lists source queues or shows the unsupported notice (ministack).
+ *       lists source queues — or shows the unsupported notice on emulators
+ *       without ListDeadLetterSourceQueues (gated on `sqs.dlqSources`).
  */
 describe("sqs", () => {
   const client: SQSClient = makeSqsClient(E2E_ENDPOINT);
@@ -71,6 +73,7 @@ describe("sqs", () => {
         /* best effort */
       }
     }
+    expectCovered("R38");
   });
 
   it("R22: lists SDK-seeded queues with their (approximate) message count", async () => {
@@ -292,9 +295,12 @@ describe("sqs", () => {
     });
   });
 
-  it("R38: dead-letter tab shows the redrive policy and source queues (or an unsupported notice)", async () => {
-    const dlqName = `q38dlq-${stamp}`;
-    const srcName = `q38src-${stamp}`;
+  /** Seed a DLQ + a source queue whose RedrivePolicy points at it, then
+   *  assert the source queue's dead-letter tab shows the policy. Returns the
+   *  DLQ name so the caller can assert the capability-specific side. */
+  async function seedDlqPairAndAssertRedrive(suffix: string): Promise<string> {
+    const dlqName = `q38dlq${suffix}-${stamp}`;
+    const srcName = `q38src${suffix}-${stamp}`;
     const dlqUrl = await seedQueue(dlqName);
     const dlqArn = (
       await client.send(
@@ -320,16 +326,28 @@ describe("sqs", () => {
       async () => (await $(T("dlq-redrive-policy")).getText()).includes("3"),
       { timeout: 20000, timeoutMsg: "redrive policy was not displayed" },
     );
+    return dlqName;
+  }
 
-    // The DLQ's dead-letter tab lists source queues, or shows the unsupported
-    // notice on emulators without ListDeadLetterSourceQueues (ministack).
+  it("R38: dead-letter tab shows the redrive policy and source queues", async function () {
+    await gate(this, "R38", { on: ["sqs.dlqSources"] });
+    const dlqName = await seedDlqPairAndAssertRedrive("s");
+
+    // The DLQ's dead-letter tab lists its source queues.
     await gotoQueueDetail(dlqName);
     await clickT("tab-dlq");
-    await browser.waitUntil(
-      async () =>
-        (await $(T("dlq-sources-table")).isExisting()) ||
-        (await $(T("dlq-sources-unsupported")).isExisting()),
-      { timeout: 20000, timeoutMsg: "neither the sources table nor the unsupported notice appeared" },
-    );
+    await waitDisplayed(T("dlq-sources-table"));
+    await expect($(T("dlq-sources-unsupported"))).not.toBeExisting();
+  });
+
+  it("R38: dead-letter tab shows the unsupported notice for source queues", async function () {
+    await gate(this, "R38", { off: ["sqs.dlqSources"] });
+    const dlqName = await seedDlqPairAndAssertRedrive("u");
+
+    // No ListDeadLetterSourceQueues here: the tab explains instead of erroring.
+    await gotoQueueDetail(dlqName);
+    await clickT("tab-dlq");
+    await waitDisplayed(T("dlq-sources-unsupported"));
+    await expect($(T("dlq-sources-table"))).not.toBeExisting();
   });
 });

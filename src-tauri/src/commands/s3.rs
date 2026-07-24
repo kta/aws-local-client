@@ -107,10 +107,14 @@ pub struct CorsRuleJson {
 
 /// Build an S3 client. Local emulators (LocalStack / ministack / floci) require
 /// path-style addressing because virtual-host-style buckets are not resolvable
-/// against `localhost`.
+/// against `localhost`. Checksums are computed only when an operation requires
+/// them: the SDK's default (WhenSupported) sends uploads as `aws-chunked`
+/// streams with CRC trailers, which some emulators (kumo) store verbatim —
+/// corrupting the object body with chunk-signature framing.
 fn make_client(p: &ConnectionProfile) -> Client {
     let config = aws_sdk_s3::config::Builder::from(&make_sdk_config(p))
         .force_path_style(true)
+        .request_checksum_calculation(aws_sdk_s3::config::RequestChecksumCalculation::WhenRequired)
         .build();
     Client::from_conf(config)
 }

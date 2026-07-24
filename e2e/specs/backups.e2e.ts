@@ -17,9 +17,9 @@ import {
   getItem,
   makeClient,
   putItems,
-  supportsBackups,
   tableExists,
 } from "../helpers/emulator";
+import { expectCovered, gate, supports } from "../helpers/capabilities";
 
 const S = (v: string) => ({ S: v });
 
@@ -35,8 +35,9 @@ const backupRow = (name: string) =>
  *       backups screen shows the `backups-unsupported` banner and the create
  *       button is absent.
  *
- * Which branch runs is decided by probing the emulator with the AWS SDK
- * (ListBackups) in `before`; the other branch's tests self-skip.
+ * Which branch runs is decided by the `dynamodb.backups` capability probe
+ * (see helpers/capabilities.ts); the other branch's tests self-skip and the
+ * `after` coverage guard asserts one of the two actually ran.
  */
 describe("backups", () => {
   const client = makeClient(E2E_ENDPOINT);
@@ -49,7 +50,7 @@ describe("backups", () => {
   const restoredTable = `bk_restored_${stamp}`;
 
   before(async () => {
-    supported = await supportsBackups(client);
+    supported = await supports("dynamodb.backups");
 
     await setupActiveConnection({
       name: "backups-conn",
@@ -68,14 +69,12 @@ describe("backups", () => {
       await deleteTable(srcTable, client);
       await deleteTable(restoredTable, client);
     }
+    expectCovered("R20-R21");
   });
 
   describe("supported emulator (R20)", () => {
-    beforeEach(function () {
-      if (!supported) this.skip();
-    });
-
-    it("R20: creates a backup, restores it to a new table, then deletes it", async () => {
+    it("R20: creates a backup, restores it to a new table, then deletes it", async function () {
+      await gate(this, "R20-R21", { on: ["dynamodb.backups"] });
       await gotoBackups();
 
       // --- create -------------------------------------------------------------
@@ -122,11 +121,8 @@ describe("backups", () => {
   });
 
   describe("unsupported emulator (R21)", () => {
-    beforeEach(function () {
-      if (supported) this.skip();
-    });
-
-    it("R21: shows the unsupported banner and hides the create button", async () => {
+    it("R21: shows the unsupported banner and hides the create button", async function () {
+      await gate(this, "R20-R21", { off: ["dynamodb.backups"] });
       await gotoBackups();
       await waitDisplayed(T("backups-unsupported"));
       await expect($(T("backups-unsupported"))).toBeDisplayed();

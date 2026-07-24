@@ -12,6 +12,7 @@ import {
   waitForNotLoading,
 } from "../helpers/app";
 import { createTable, deleteTable, getItem, makeClient, putItems } from "../helpers/emulator";
+import { expectCovered, gate } from "../helpers/capabilities";
 
 const S = (v: string) => ({ S: v });
 
@@ -28,10 +29,12 @@ async function waitForPartiqlRows(expected: number, timeout = 20000): Promise<vo
 }
 
 /**
- * PartiQL requirement:
+ * PartiQL requirement (capability-gated on `dynamodb.partiql`):
  *   R19 template select fills SELECT * FROM "<table>"; SELECT renders rows;
  *       INSERT then SELECT shows the inserted item (write path); an invalid
- *       statement shows the error banner.
+ *       statement shows the error banner. On emulators without ExecuteStatement
+ *       (kumo) the row-rendering tests skip and the unsupported-side test
+ *       asserts a SELECT surfaces the error banner instead.
  */
 describe("partiql", () => {
   const client = makeClient(E2E_ENDPOINT);
@@ -57,6 +60,7 @@ describe("partiql", () => {
 
   after(async () => {
     await deleteTable("pq_tbl", client);
+    expectCovered("R19");
   });
 
   // R19 — the template selector fills the statement box.
@@ -67,7 +71,8 @@ describe("partiql", () => {
   });
 
   // R19 — running a SELECT renders the seeded rows.
-  it("R19: runs a SELECT and renders the seeded rows", async () => {
+  it("R19: runs a SELECT and renders the seeded rows", async function () {
+    await gate(this, "R19", { on: ["dynamodb.partiql"] });
     await gotoPartiql();
     await setValueT("partiql-statement", 'SELECT * FROM "pq_tbl"');
     await clickT("partiql-run");
@@ -79,7 +84,8 @@ describe("partiql", () => {
   });
 
   // R19 — an INSERT statement writes, then a SELECT shows the inserted item.
-  it("R19: INSERT then SELECT shows the inserted item (write path)", async () => {
+  it("R19: INSERT then SELECT shows the inserted item (write path)", async function () {
+    await gate(this, "R19", { on: ["dynamodb.partiql"] });
     await gotoPartiql();
     await setValueT(
       "partiql-statement",
@@ -103,13 +109,27 @@ describe("partiql", () => {
     );
   });
 
-  // R19 — an invalid statement surfaces the error banner.
-  it("R19: an invalid statement shows the error banner", async () => {
+  // R19 — an invalid statement surfaces the error banner. Runs everywhere:
+  // on a PartiQL-less emulator the statement fails as unsupported, which must
+  // surface through the same banner.
+  it("R19: an invalid statement shows the error banner", async function () {
+    await gate(this, "R19", {});
     await gotoPartiql();
     await setValueT("partiql-statement", "THIS IS NOT VALID PARTIQL");
     await clickT("partiql-run");
     await waitForNotLoading();
     await waitDisplayed(T("error-banner"));
     await expect($(T("error-banner"))).toBeDisplayed();
+  });
+
+  // R19 — unsupported side: a valid SELECT on an emulator without
+  // ExecuteStatement surfaces the emulator's error through the banner.
+  it("R19: a SELECT on a PartiQL-less emulator shows the error banner", async function () {
+    await gate(this, "R19", { off: ["dynamodb.partiql"] });
+    await gotoPartiql();
+    await setValueT("partiql-statement", 'SELECT * FROM "pq_tbl"');
+    await clickT("partiql-run");
+    await waitForNotLoading();
+    await waitDisplayed(T("error-banner"));
   });
 });

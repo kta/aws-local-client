@@ -31,6 +31,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeSnsClient, makeSqsClient } from "../helpers/aws";
+import { expectCovered, gate } from "../helpers/capabilities";
 
 /**
  * SNS requirements (R26-R28, R39-R42). Fixtures are seeded / verified directly
@@ -93,6 +94,7 @@ describe("sns", () => {
         /* best effort */
       }
     }
+    expectCovered("R42");
   });
 
   it("R26: UI creates, lists and deletes a topic", async () => {
@@ -313,7 +315,8 @@ describe("sns", () => {
     );
   });
 
-  it("R42: adds a topic tag (SDK verified), then removes it", async () => {
+  it("R42: adds a topic tag (SDK verified), then removes it", async function () {
+    await gate(this, "R42", { on: ["sns.topicTags"] });
     const topicName = `t42-${stamp}`;
     const topicArn = await seedTopic(topicName);
 
@@ -347,5 +350,26 @@ describe("sns", () => {
       },
       { timeout: 20000, timeoutMsg: "tag never cleared via the SDK" },
     );
+  });
+
+  // R42 — degraded side: on an emulator whose TagResource silently drops the
+  // tag (kumo), the tags tab must still render and an add attempt must not
+  // error (the emulator answers success), it just never shows a row.
+  it("R42: tags tab stays functional when tags do not persist", async function () {
+    await gate(this, "R42", { off: ["sns.topicTags"] });
+    const topicName = `t42u-${stamp}`;
+    await seedTopic(topicName);
+
+    await gotoTopicDetail(topicName);
+    await clickT("tab-tags");
+
+    await clickT("tag-add");
+    await setValueT("tag-key-input", "env");
+    await setValueT("tag-value-input", "prod");
+    await clickT("tag-save");
+    // The save round-trips (no error banner); the tag never materialises.
+    await browser.pause(2000);
+    await expect($(T("error-banner"))).not.toBeExisting();
+    await expect($(T("tag-remove-env"))).not.toBeExisting();
   });
 });
