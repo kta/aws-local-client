@@ -700,4 +700,19 @@ export async function gotoParameterGroups(): Promise<void> {
   await waitDisplayed(T("pgroups-heading"));
 }
 
+export async function gotoCfnDashboard(): Promise<void> {
+  await navigateHash("#/cloudformation");
+  await waitDisplayed(T("cfn-dashboard-heading"));
+}
+
+export async function gotoStacks(): Promise<void> {
+  await navigateHash("#/cloudformation/stacks");
+  await waitDisplayed(T("stacks-heading"));
+}
+
+export async function gotoStackDetail(name: string): Promise<void> {
+  await navigateHash(`#/cloudformation/stacks/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("stack-detail-heading"));
+}
+
 export { $, $$, browser, expect };

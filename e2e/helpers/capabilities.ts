@@ -14,13 +14,20 @@ import {
   CreateTopicCommand,
   DeleteTopicCommand,
   ListTagsForResourceCommand,
+  ListTopicsCommand,
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
+import {
+  CreateStackCommand,
+  DeleteStackCommand,
+  DescribeStacksCommand,
+} from "@aws-sdk/client-cloudformation";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import { makeClient } from "./emulator";
 import {
   E2E_ENDPOINT,
   isUnsupportedError,
+  makeCfnClient,
   makeS3Client,
   makeSnsClient,
   makeSqsClient,
@@ -59,6 +66,7 @@ export type CapabilityId =
   | "rds.snapshots.describe"
   | "rds.snapshots.restore"
   | "rds.parameterGroups.describe"
+  | "cloudformation.resourceCreation"
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
@@ -198,6 +206,47 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
     }),
 
   "rds.parameterGroups.describe": () => rdsDescribeProbe("DescribeDBParameterGroups"),
+
+  // Functional round-trip: kumo's CloudFormation is control-plane only — it
+  // reaches CREATE_COMPLETE but never provisions the templated resource, so
+  // only "the SNS topic the template declares actually exists afterwards"
+  // proves resources are really created. Real emulators (ministack/floci/
+  // localstack) provision it; kumo does not.
+  "cloudformation.resourceCreation": async () => {
+    const cfn = makeCfnClient();
+    const sns = makeSnsClient();
+    const stack = `nlsd-cap-cfn-${PROBE_STAMP}`;
+    const topic = `nlsd-cap-cfn-topic-${PROBE_STAMP}`;
+    const template = JSON.stringify({
+      Resources: {
+        ProbeTopic: { Type: "AWS::SNS::Topic", Properties: { TopicName: topic } },
+      },
+    });
+    try {
+      await cfn.send(new CreateStackCommand({ StackName: stack, TemplateBody: template }));
+    } catch (e) {
+      serviceErrorMeansImplemented(e); // re-throws transport errors
+      return false; // any create rejection => not resource-creation-capable
+    }
+    try {
+      // Wait for CREATE_COMPLETE (bounded), then check the real resource.
+      for (let i = 0; i < 30; i++) {
+        try {
+          const out = await cfn.send(new DescribeStacksCommand({ StackName: stack }));
+          const st = out.Stacks?.[0]?.StackStatus;
+          if (st === "CREATE_COMPLETE") break;
+          if (st?.endsWith("_FAILED")) return false;
+        } catch {
+          /* not ready yet */
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      const topics = await sns.send(new ListTopicsCommand({}));
+      return (topics.Topics ?? []).some((t) => t.TopicArn?.includes(topic));
+    } finally {
+      await cfn.send(new DeleteStackCommand({ StackName: stack })).catch(() => {});
+    }
+  },
 
   // A missing queue is enough: QueueDoesNotExist proves the action is routed.
   "sqs.dlqSources": async () => {
