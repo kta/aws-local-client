@@ -11,6 +11,7 @@ import {
   gotoMskClusterDetail,
   gotoMskClusters,
   gotoMskDashboard,
+  navigateHash,
   setValueT,
   setupActiveConnection,
   waitDisplayed,
@@ -60,14 +61,23 @@ describe("msk", () => {
     await setValueT("c-name", name);
     await clickT("c-save");
 
-    // The row appears and reaches the ACTIVE badge ("アクティブ").
+    // The row appears and reaches the ACTIVE badge ("アクティブ"). The clusters
+    // list fetches once on mount, so re-navigate each poll to refetch the state
+    // as the cluster transitions CREATING -> ACTIVE.
     const row = `//tr[.//*[@data-testid="cluster-row-${name}"]]`;
     await waitDisplayed(T(`cluster-row-${name}`), 60000);
-    await browser.waitUntil(async () => (await $(row).getText()).includes("アクティブ"), {
-      timeout: 60000,
-      interval: 2000,
-      timeoutMsg: `cluster ${name} never became ACTIVE`,
-    });
+    await browser.waitUntil(
+      async () => {
+        await navigateHash("#/");
+        await gotoMskClusters();
+        return (await $(row).getText().catch(() => "")).includes("アクティブ");
+      },
+      {
+        timeout: 60000,
+        interval: 2000,
+        timeoutMsg: `cluster ${name} never became ACTIVE`,
+      },
+    );
 
     // SDK back-check: the cluster really exists.
     const listed = await kafka.send(new ListClustersCommand({}));

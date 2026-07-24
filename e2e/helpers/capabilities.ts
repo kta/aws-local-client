@@ -121,6 +121,8 @@ export type CapabilityId =
   | "rds.instances.describe"
   | "rds.instances.create"
   | "rds.instances.reboot"
+  | "rds.instances.stopStart"
+  | "rds.instances.modifyApplies"
   | "rds.snapshots.describe"
   | "rds.snapshots.restore"
   | "rds.parameterGroups.describe"
@@ -247,14 +249,23 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
   // counts as "not create-capable".
   "rds.instances.create": async () => {
     const id = `nlsd-cap-probe-${PROBE_STAMP}`;
-    const { ok } = await rdsQuery("CreateDBInstance", {
-      DBInstanceIdentifier: id,
-      Engine: "mysql",
-      DBInstanceClass: "db.t3.micro",
-      MasterUsername: "admin",
-      MasterUserPassword: "password123",
-      AllocatedStorage: "20",
-    });
+    // Retry: under the full parallel suite a create can transiently fail on a
+    // create-capable emulator (floci). A genuinely create-incapable emulator
+    // fails every attempt, so retries only rescue transient load failures.
+    let ok = false;
+    for (let attempt = 0; attempt < 4 && !ok; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+      ok = (
+        await rdsQuery("CreateDBInstance", {
+          DBInstanceIdentifier: id,
+          Engine: "mysql",
+          DBInstanceClass: "db.t3.micro",
+          MasterUsername: "admin",
+          MasterUserPassword: "password123",
+          AllocatedStorage: "20",
+        })
+      ).ok;
+    }
     if (!ok) return false;
     // Cleanup is best effort; the probe instance is uniquely named.
     await rdsQuery("DeleteDBInstance", {
@@ -266,6 +277,54 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
 
   "rds.instances.reboot": () =>
     rdsNotFoundProbe("RebootDBInstance", { DBInstanceIdentifier: "nlsd-cap-probe-missing" }),
+
+  // Stop/Start: floci answers "Operation StopDBInstance is not supported" while
+  // ministack/localstack implement it. A NotFound for a missing instance proves
+  // the operation is routed; an unsupported error proves it is not.
+  "rds.instances.stopStart": () =>
+    rdsNotFoundProbe("StopDBInstance", { DBInstanceIdentifier: "nlsd-cap-probe-missing" }),
+
+  // Modify-applies: floci accepts ModifyDBInstance without error but never
+  // actually changes AllocatedStorage, while ministack/localstack apply it.
+  // Only reachable where create works (gated behind rds.instances.create), so
+  // the emulator supports real RDS instances; drive a full create -> modify ->
+  // observe cycle and confirm the new storage lands.
+  "rds.instances.modifyApplies": async () => {
+    const id = `nlsd-cap-modify-${PROBE_STAMP}`;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const created = await rdsQuery("CreateDBInstance", {
+      DBInstanceIdentifier: id,
+      Engine: "mysql",
+      DBInstanceClass: "db.t3.micro",
+      MasterUsername: "admin",
+      MasterUserPassword: "password123",
+      AllocatedStorage: "20",
+    });
+    if (!created.ok) return false;
+    try {
+      for (let i = 0; i < 20; i++) {
+        const d = await rdsQuery("DescribeDBInstances", { DBInstanceIdentifier: id });
+        if (/<DBInstanceStatus>available<\/DBInstanceStatus>/.test(d.body)) break;
+        await sleep(1000);
+      }
+      await rdsQuery("ModifyDBInstance", {
+        DBInstanceIdentifier: id,
+        AllocatedStorage: "30",
+        ApplyImmediately: "true",
+      });
+      for (let i = 0; i < 15; i++) {
+        const d = await rdsQuery("DescribeDBInstances", { DBInstanceIdentifier: id });
+        if (/<AllocatedStorage>30<\/AllocatedStorage>/.test(d.body)) return true;
+        await sleep(1000);
+      }
+      return false;
+    } finally {
+      await rdsQuery("DeleteDBInstance", {
+        DBInstanceIdentifier: id,
+        SkipFinalSnapshot: "true",
+      }).catch(() => {});
+    }
+  },
 
   "rds.snapshots.describe": () => rdsDescribeProbe("DescribeDBSnapshots"),
 
