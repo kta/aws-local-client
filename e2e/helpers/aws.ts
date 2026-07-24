@@ -1,3 +1,4 @@
+import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { RDSClient } from "@aws-sdk/client-rds";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SNSClient } from "@aws-sdk/client-sns";
@@ -32,6 +33,57 @@ export function makeS3Client(endpoint = E2E_ENDPOINT, region = E2E_REGION): S3Cl
 
 export function makeRdsClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): RDSClient {
   return new RDSClient({ endpoint, region, credentials });
+}
+
+// CloudWatch Logs speaks the AWS JSON protocol, which every emulator implements,
+// so the SDK works for seeding/verifying log fixtures. CloudWatch Metrics/Alarms
+// do NOT get an SDK client: modern SDKs use smithy-rpc-v2-cbor which localstack:3
+// rejects (spec §2.1-1) — use `awsQuery("monitoring", ...)` for those instead.
+export function makeCloudWatchLogsClient(
+  endpoint = E2E_ENDPOINT,
+  region = E2E_REGION,
+): CloudWatchLogsClient {
+  return new CloudWatchLogsClient({ endpoint, region, credentials });
+}
+
+/**
+ * Raw AWS **Query-protocol** call (form POST + XML/JSON body), the generalized
+ * form of the former RDS-only probe. Some services cannot be driven through the
+ * JS SDK against these emulators:
+ *   - RDS: kumo answers unsupported actions with a JSON body on the XML protocol,
+ *     which the SDK turns into an opaque deserialization error.
+ *   - CloudWatch (service token `monitoring`): the SDK speaks CBOR, which
+ *     localstack:3 rejects with "Operation detection failed".
+ * A raw HTTP call lets tests seed/verify and classify the body text directly.
+ * The `api/<service>` User-Agent token is required by kumo to disambiguate
+ * action names shared across services (the JS SDK sends it automatically).
+ */
+export async function awsQuery(
+  service: string,
+  action: string,
+  params: Record<string, string> = {},
+  version: string,
+): Promise<{ ok: boolean; body: string }> {
+  const form = new URLSearchParams({ Action: action, Version: version, ...params });
+  const res = await fetch(`${E2E_ENDPOINT}/`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded; charset=utf-8",
+      "user-agent": `aws-sdk-js/3.0 api/${service}#3.0`,
+      // Emulators do not verify signatures but some route by the credential scope.
+      authorization: `AWS4-HMAC-SHA256 Credential=dummy/20260101/us-east-1/${service}/aws4_request, SignedHeaders=host, Signature=dummy`,
+    },
+    body: form.toString(),
+  });
+  return { ok: res.ok, body: await res.text() };
+}
+
+/** CloudWatch Metrics/Alarms Query call (`monitoring` service, API version 2010-08-01). */
+export function cwQuery(
+  action: string,
+  params: Record<string, string> = {},
+): Promise<{ ok: boolean; body: string }> {
+  return awsQuery("monitoring", action, params, "2010-08-01");
 }
 
 /** True if an SDK error looks like "this emulator does not implement the op". */

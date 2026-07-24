@@ -57,6 +57,13 @@ aws-types = "1"
 base64 = "0.22"
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+# CloudWatch Metrics/Alarms speak the legacy Query protocol (form POST + XML):
+# modern AWS SDKs use smithy-rpc-v2-cbor which localstack:3 rejects with
+# "Operation detection failed" (see spec §2.1-1). reqwest issues the raw POST
+# and quick-xml parses the response. default-features=false keeps the addition
+# minimal; rustls-tls lets it also work against https endpoints.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+quick-xml = { version = "0.37", features = ["serialize"] }
 
 [dev-dependencies]
 tempfile = "3"

@@ -118,6 +118,17 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::cloudwatch::cw_list_log_groups,
+            commands::cloudwatch::cw_create_log_group,
+            commands::cloudwatch::cw_delete_log_group,
+            commands::cloudwatch::cw_list_log_streams,
+            commands::cloudwatch::cw_get_log_events,
+            commands::cloudwatch::cw_filter_log_events,
+            commands::cloudwatch_query::cw_list_metrics,
+            commands::cloudwatch_query::cw_get_metric_statistics,
+            commands::cloudwatch_query::cw_describe_alarms,
+            commands::cloudwatch_query::cw_put_metric_alarm,
+            commands::cloudwatch_query::cw_delete_alarms,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
