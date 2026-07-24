@@ -26,7 +26,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { E2E_ENDPOINT, makeApiGatewayClient } from "../helpers/aws";
-import { expectCovered, gate } from "../helpers/capabilities";
+import { expectCovered, gate, markCovered } from "../helpers/capabilities";
 
 /**
  * API Gateway requirements (R56-R59). Fixtures are seeded / verified directly
@@ -88,6 +88,7 @@ describe("api-gateway", () => {
   });
 
   it("R56: lists a seeded API, dashboard summarises, UI create + delete round-trip", async () => {
+    markCovered("R56");
     const seededName = `api56-${stamp}`;
     const seededId = await seedApi(seededName);
 
@@ -140,6 +141,7 @@ describe("api-gateway", () => {
   });
 
   it("R57: UI create a resource + a MOCK GET method, SDK verifies both", async () => {
+    markCovered("R57");
     const apiId = await seedApi(`api57-${stamp}`);
 
     await gotoApiDetail(apiId);
@@ -187,6 +189,7 @@ describe("api-gateway", () => {
   });
 
   it("R58: UI creates a deployment/stage; stages tab + SDK confirm it", async () => {
+    markCovered("R58");
     // Seed an API with a resource + method so a deployment is valid everywhere.
     const apiId = await seedApi(`api58-${stamp}`);
     const rootId = await rootResourceId(apiId);

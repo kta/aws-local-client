@@ -21,7 +21,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeLambdaClient } from "../helpers/aws";
-import { expectCovered, gate } from "../helpers/capabilities";
+import { expectCovered, gate, markCovered } from "../helpers/capabilities";
 import { buildHandlerZip } from "../helpers/lambdaZip";
 
 /**
@@ -133,6 +133,7 @@ describe("lambda", () => {
   });
 
   it("R51: dashboard summarises functions and the create quick action opens the modal", async () => {
+    markCovered("R51");
     const name = `fn51-${stamp}`;
     await seedFunction(name);
 
@@ -154,6 +155,7 @@ describe("lambda", () => {
   });
 
   it("R52: lists a seeded function, UI-creates one (SDK verify) and deletes it", async () => {
+    markCovered("R52");
     const seeded = `fn52a-${stamp}`;
     await seedFunction(seeded);
 
@@ -194,6 +196,7 @@ describe("lambda", () => {
   });
 
   it("R53: detail overview, config edit (SDK verify) and code re-upload (sha changes)", async () => {
+    markCovered("R53");
     const name = `fn53-${stamp}`;
     await seedFunction(name);
     await waitActive(name);
