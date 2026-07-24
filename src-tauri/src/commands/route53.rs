@@ -61,6 +61,22 @@ fn caller_reference() -> String {
     format!("nlsd-{nanos}")
 }
 
+/// Canonicalize a record-set name to a fully-qualified domain name (single
+/// trailing dot). Real Route 53 — and the ministack/floci/localstack emulators
+/// — normalize names to an FQDN on write, so their `ListResourceRecordSets`
+/// echoes back "www.example.com."; kumo stores and returns the name verbatim,
+/// so without this the app would render "www.example.com" on kumo and diverge
+/// from every other emulator. Normalizing on the write path keeps the stored
+/// (and therefore listed) name canonical everywhere.
+fn normalize_fqdn(name: &str) -> String {
+    let trimmed = name.trim();
+    if trimmed.is_empty() || trimmed.ends_with('.') {
+        trimmed.to_string()
+    } else {
+        format!("{trimmed}.")
+    }
+}
+
 /// Map the wire action string to the SDK enum, rejecting unknown values.
 fn parse_action(action: &str) -> Result<ChangeAction, AppError> {
     match action.to_uppercase().as_str() {
@@ -187,7 +203,7 @@ pub async fn change_record_set(
     }
 
     let mut rrs_builder = ResourceRecordSet::builder()
-        .name(&record.name)
+        .name(normalize_fqdn(&record.name))
         .r#type(rtype)
         .set_resource_records(Some(records));
     if let Some(ttl) = record.ttl {
@@ -429,6 +445,17 @@ mod tests {
         assert_eq!(req.port, 443);
         assert_eq!(req.check_type, "HTTP");
         assert_eq!(req.resource_path.as_deref(), Some("/health"));
+    }
+
+    #[test]
+    fn normalize_fqdn_appends_a_single_trailing_dot() {
+        assert_eq!(normalize_fqdn("www.example.com"), "www.example.com.");
+        // Already an FQDN: unchanged (no double dot).
+        assert_eq!(normalize_fqdn("www.example.com."), "www.example.com.");
+        // Surrounding whitespace is trimmed.
+        assert_eq!(normalize_fqdn("  www.example.com  "), "www.example.com.");
+        // Empty stays empty (validated elsewhere).
+        assert_eq!(normalize_fqdn(""), "");
     }
 
     #[test]
