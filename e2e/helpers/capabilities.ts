@@ -11,6 +11,11 @@ import {
   PutBucketTaggingCommand,
 } from "@aws-sdk/client-s3";
 import {
+  CreateRepositoryCommand,
+  DeleteRepositoryCommand,
+  DescribeRepositoriesCommand,
+} from "@aws-sdk/client-ecr";
+import {
   CreateTopicCommand,
   DeleteTopicCommand,
   ListTagsForResourceCommand,
@@ -54,6 +59,7 @@ import {
   makeElastiCacheClient,
   makeCfnClient,
   makeEcsClient,
+  makeEcrClient,
   makeS3Client,
   makeSecretsManagerClient,
   makeSnsClient,
@@ -109,6 +115,8 @@ export type CapabilityId =
   | "cognito.adminUserState";
   | "secretsmanager.tags";
   | "ecs.clusters";
+  | "ecr.repositories"
+  | "ecr.create";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -582,6 +590,34 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
         .send(new DeleteSecretCommand({ SecretId: name, ForceDeleteWithoutRecovery: true }))
         .catch(() => {});
     }
+  },
+  // DescribeRepositories: localstack CE answers ECR with a "pro feature" /
+  // "not yet implemented" error; ministack/kumo/floci (with docker.sock)
+  // implement it.
+  "ecr.repositories": async () => {
+    try {
+      await makeEcrClient().send(new DescribeRepositoriesCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // CreateRepository: separated from describe because floci only creates
+  // repositories when started with the docker socket mounted (it spawns a real
+  // registry container). Create a uniquely-named repo and clean it up.
+  "ecr.create": async () => {
+    const ecr = makeEcrClient();
+    const name = `nlsd-cap-probe-${PROBE_STAMP}`;
+    try {
+      await ecr.send(new CreateRepositoryCommand({ repositoryName: name }));
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+    await ecr
+      .send(new DeleteRepositoryCommand({ repositoryName: name, force: true }))
+      .catch(() => {});
+    return true;
   },
 };
 

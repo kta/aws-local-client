@@ -203,6 +203,10 @@ pub fn run() {
             commands::ecs::ecs_list_tasks,
             commands::ecs::ecs_run_task,
             commands::ecs::ecs_stop_task,
+            commands::ecr::ecr_list_repositories,
+            commands::ecr::ecr_create_repository,
+            commands::ecr::ecr_delete_repository,
+            commands::ecr::ecr_list_images,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

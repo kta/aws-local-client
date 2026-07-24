@@ -809,6 +809,20 @@ export async function gotoClusterDetail(name: string): Promise<void> {
 export async function gotoTaskDefinitions(): Promise<void> {
   await navigateHash("#/ecs/task-definitions");
   await waitDisplayed(T("ecs-taskdefs-heading"));
+// --- ECR navigation (R78-R79) ------------------------------------------------
+
+export async function gotoRepositories(): Promise<void> {
+  // Bounce through another hash first so navigating to the repositories page
+  // always remounts it (a repeat navigateHash to the same hash is a no-op and
+  // would keep a stale list from a previous test).
+  await navigateHash("#/ecr");
+  await navigateHash("#/ecr/repositories");
+  await waitDisplayed(T("ecr-repositories-heading"));
+}
+
+export async function gotoRepositoryDetail(name: string): Promise<void> {
+  await navigateHash(`#/ecr/repositories/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("ecr-detail-heading"));
 }
 
 export { $, $$, browser, expect };

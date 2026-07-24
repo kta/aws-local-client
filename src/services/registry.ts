@@ -12,6 +12,7 @@ import { secretsManagerService } from "../features/secrets-manager/service";
 import { elasticacheService } from "../features/elasticache/service";
 import { cloudformationService } from "../features/cloudformation/service";
 import { ecsService } from "../features/ecs/service";
+import { ecrService } from "../features/ecr/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -36,6 +37,7 @@ const comingSoon = (id: string, name: string): ServiceDefinition => ({
 const FLOCI_COMING_SOON: [string, string][] = [
   ["ec2", "EC2"],
   ["ecr", "ECR"],
+  ["ecs", "ECS"],
   ["eks", "EKS"],
   ["step-functions", "Step Functions"],
   ["scheduler", "EventBridge Scheduler"],
@@ -112,6 +114,7 @@ export const SERVICES: ServiceDefinition[] = [
   elasticacheService,
   cloudformationService,
   ecsService,
+  ecrService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 

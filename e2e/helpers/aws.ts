@@ -5,6 +5,7 @@ import { EventBridgeClient } from "@aws-sdk/client-eventbridge";
 import { ElastiCacheClient } from "@aws-sdk/client-elasticache";
 import { CloudFormationClient } from "@aws-sdk/client-cloudformation";
 import { ECSClient } from "@aws-sdk/client-ecs";
+import { ECRClient } from "@aws-sdk/client-ecr";
 import { RDSClient } from "@aws-sdk/client-rds";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
@@ -76,6 +77,8 @@ export function makeCfnClient(
   return new CloudFormationClient({ endpoint, region, credentials });
 export function makeEcsClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): ECSClient {
   return new ECSClient({ endpoint, region, credentials });
+export function makeEcrClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): ECRClient {
+  return new ECRClient({ endpoint, region, credentials });
 }
 
 /** True if an SDK error looks like "this emulator does not implement the op". */
