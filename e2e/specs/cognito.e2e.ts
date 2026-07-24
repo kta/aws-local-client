@@ -181,13 +181,17 @@ describe("cognito", () => {
 
       // Disable then re-enable; the row reflects the state each time.
       await clickT(`user-disable-${username}`);
-      const row = `//tr[.//*[@data-testid="user-row-${username}"]]`;
-      await browser.waitUntil(async () => (await $(row).getText()).includes("無効"), {
+      // The data-testid sits on the <tr> itself, so select the row directly.
+      const row = `//tr[@data-testid="user-row-${username}"]`;
+      // The row briefly detaches while the list refetches after the toggle;
+      // tolerate a transiently missing element instead of throwing.
+      const rowText = async () => $(row).getText().catch(() => "");
+      await browser.waitUntil(async () => (await rowText()).includes("無効"), {
         timeout: 20000,
         timeoutMsg: `user ${username} never showed 無効`,
       });
       await clickT(`user-enable-${username}`);
-      await browser.waitUntil(async () => (await $(row).getText()).includes("有効"), {
+      await browser.waitUntil(async () => (await rowText()).includes("有効"), {
         timeout: 20000,
         timeoutMsg: `user ${username} never showed 有効`,
       });

@@ -13,6 +13,7 @@ import {
   gotoCfnDashboard,
   gotoStackDetail,
   gotoStacks,
+  navigateHash,
   setValueT,
   setupActiveConnection,
   waitDisplayed,
@@ -113,13 +114,22 @@ describe("cloudformation", () => {
     await waitDisplayed(T("cfn-dash-complete"));
     await waitDisplayed(T("cfn-dash-failed"));
     await waitDisplayed(T("cfn-dash-create"));
-    // The seeded stack contributes at least one stack.
+    // The seeded stack contributes at least one stack. Bounce through home each
+    // poll so the dashboard actually remounts and refetches (re-setting the same
+    // hash is a no-op; some emulators surface ListStacks with a short delay).
     await browser.waitUntil(
       async () => {
-        const n = Number(await $(T("cfn-dash-stacks")).getText());
+        await navigateHash("#/");
+        await gotoCfnDashboard();
+        // The card renders "スタック数<n>"; strip the label before parsing.
+        const n = Number((await $(T("cfn-dash-stacks")).getText()).replace(/[^\d]/g, ""));
         return Number.isFinite(n) && n >= 1;
       },
-      { timeout: 20000, timeoutMsg: "dashboard stack count never reflected the seeded stack" },
+      {
+        timeout: 30000,
+        interval: 2000,
+        timeoutMsg: "dashboard stack count never reflected the seeded stack",
+      },
     );
 
     // The stack appears in the list view.

@@ -866,3 +866,16 @@ export async function expectCoveredIf(family: string, when: CapabilityId[]): Pro
   }
   expectCovered(family);
 }
+
+/** Like expectCovered, but only when NOT all of `when` are supported — for a
+ *  family that is only meaningful on emulators LACKING a capability (e.g. an
+ *  unsupported-banner test that gates `off` a capability and therefore never
+ *  runs on a capable emulator). */
+export async function expectCoveredUnless(family: string, when: CapabilityId[]): Promise<void> {
+  for (const id of when) {
+    if (!(await supports(id))) {
+      expectCovered(family);
+      return;
+    }
+  }
+}

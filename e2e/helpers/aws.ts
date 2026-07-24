@@ -139,8 +139,11 @@ export async function awsQuery(
     headers: {
       "content-type": "application/x-www-form-urlencoded; charset=utf-8",
       "user-agent": `aws-sdk-js/3.0 api/${service}#3.0`,
-      // Emulators do not verify signatures but some route by the credential scope.
-      authorization: `AWS4-HMAC-SHA256 Credential=dummy/20260101/us-east-1/${service}/aws4_request, SignedHeaders=host, Signature=dummy`,
+      // Emulators do not verify signatures but some partition data by the
+      // credential-scope region (e.g. ministack keeps CloudWatch metrics/alarms
+      // per region), so the scope MUST match the region the app connects with
+      // (E2E_REGION) or seeded fixtures are invisible to the app under test.
+      authorization: `AWS4-HMAC-SHA256 Credential=dummy/20260101/${E2E_REGION}/${service}/aws4_request, SignedHeaders=host, Signature=dummy`,
     },
     body: form.toString(),
   });

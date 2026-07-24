@@ -199,6 +199,31 @@ export async function navigateHash(path: string): Promise<void> {
   }, path);
 }
 
+/**
+ * Re-run a navigation until a target element appears. Some emulators are
+ * eventually consistent: a resource created via the SDK can take a few seconds
+ * to surface in a list the app fetches once on mount, and re-setting the same
+ * hash is a no-op (no remount, no refetch). This bounces through home so the
+ * hash actually changes, re-runs `goto` (a fresh mount + refetch), and retries
+ * until `testid` is displayed. Mirrors the inline retry lambda R51 uses.
+ */
+export async function gotoUntil(
+  goto: () => Promise<void>,
+  testid: string,
+  { timeout = 30000, interval = 2000 }: { timeout?: number; interval?: number } = {},
+): Promise<void> {
+  await browser.waitUntil(
+    async () => {
+      await navigateHash("#/");
+      await goto();
+      return $(T(testid))
+        .isDisplayed()
+        .catch(() => false);
+    },
+    { timeout, interval, timeoutMsg: `${testid} never appeared after re-navigation` },
+  );
+}
+
 export async function gotoTables(): Promise<void> {
   await navigateHash("#/dynamodb/tables");
   await waitDisplayed(T("tables-heading"));

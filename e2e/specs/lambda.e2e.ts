@@ -15,6 +15,7 @@ import {
   E2E_ENDPOINT,
   T,
   clickT,
+  gotoUntil,
   navigateHash,
   setValueT,
   setupActiveConnection,
@@ -159,8 +160,9 @@ describe("lambda", () => {
     const seeded = `fn52a-${stamp}`;
     await seedFunction(seeded);
 
-    await gotoFunctions();
-    await waitDisplayed(T(`fn-link-${seeded}`));
+    // The emulator can be eventually consistent; re-navigate until the seeded
+    // function surfaces on the freshly fetched list.
+    await gotoUntil(gotoFunctions, `fn-link-${seeded}`);
 
     // --- UI create via the zip path seam --------------------------------------
     const created = `fn52b-${stamp}`;

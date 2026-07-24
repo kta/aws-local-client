@@ -12,6 +12,7 @@ import {
   T,
   clickT,
   navigateHash,
+  setSelectValue,
   setValueT,
   setupActiveConnection,
   waitDisplayed,
@@ -91,7 +92,7 @@ describe("ssm", () => {
       await gotoParameters();
       await clickT("params-create");
       await setValueT("param-name", name);
-      await setValueT("param-type", type);
+      await setSelectValue("param-type", type);
       await setValueT("param-value", value);
       await clickT("param-save");
       await waitDisplayed(T(`param-link-${name}`));

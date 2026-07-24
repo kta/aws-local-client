@@ -16,7 +16,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeElastiCacheClient } from "../helpers/aws";
-import { expectCovered, gate } from "../helpers/capabilities";
+import { expectCovered, expectCoveredIf, gate } from "../helpers/capabilities";
 
 /**
  * ElastiCache requirements (R68-R70), gated on the `elasticache.describe`
@@ -38,9 +38,11 @@ describe("elasticache", () => {
     });
   });
 
-  after(() => {
+  after(async () => {
     expectCovered("R68");
-    expectCovered("R69");
+    // R69 (create flow) has no unsupported-side test; the unsupported case is
+    // covered by R68/R70 banners, so only require it where describe works.
+    await expectCoveredIf("R69", ["elasticache.describe"]);
     expectCovered("R70");
   });
 

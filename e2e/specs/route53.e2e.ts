@@ -14,6 +14,7 @@ import {
   T,
   clickT,
   gotoHealthChecks,
+  gotoUntil,
   gotoHostedZoneDetail,
   gotoHostedZones,
   gotoRoute53Dashboard,
@@ -264,8 +265,8 @@ describe("route53", () => {
     const id = HealthCheck?.Id as string;
     healthCheckIds.push(id);
 
-    await gotoHealthChecks();
-    await waitDisplayed(T(`hc-target-${id}`));
+    // Eventual consistency: re-navigate until the seeded health check lists.
+    await gotoUntil(gotoHealthChecks, `hc-target-${id}`);
     expect(await $(T(`hc-target-${id}`)).getText()).toContain(target);
   });
 });

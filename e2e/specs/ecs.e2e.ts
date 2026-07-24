@@ -21,7 +21,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { E2E_ENDPOINT, makeEcsClient } from "../helpers/aws";
-import { expectCovered, expectCoveredIf, gate } from "../helpers/capabilities";
+import { expectCoveredIf, expectCoveredUnless, gate } from "../helpers/capabilities";
 
 /**
  * ECS requirements (R75-R77), gated on the `ecs.clusters` capability. The ECS
@@ -82,7 +82,8 @@ describe("ecs", () => {
 
   after(async () => {
     await expectCoveredIf("R75", ["ecs.clusters"]);
-    expectCovered("R75-banner");
+    // The banner test only runs where the ECS control plane is unsupported.
+    await expectCoveredUnless("R75-banner", ["ecs.clusters"]);
     await expectCoveredIf("R76", ["ecs.clusters"]);
     await expectCoveredIf("R77", ["ecs.clusters"]);
     // Tear down every cluster this suite created, stopping any running task
