@@ -250,6 +250,14 @@ pub fn run() {
             commands::ssm::ssm_put_parameter,
             commands::ssm::ssm_delete_parameter,
             commands::ssm::ssm_get_parameter_history,
+            commands::route53::route53_list_hosted_zones,
+            commands::route53::route53_create_hosted_zone,
+            commands::route53::route53_delete_hosted_zone,
+            commands::route53::route53_list_record_sets,
+            commands::route53::route53_change_record_set,
+            commands::route53::route53_list_health_checks,
+            commands::route53::route53_create_health_check,
+            commands::route53::route53_delete_health_check,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

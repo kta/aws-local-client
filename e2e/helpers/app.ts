@@ -893,6 +893,27 @@ export async function gotoClusters(): Promise<void> {
 export async function gotoClusterDetail(name: string): Promise<void> {
   await navigateHash(`#/msk/clusters/${encodeURIComponent(name)}`);
   await waitDisplayed(T("cluster-detail-heading"));
+// --- Route 53 navigation (R96-R98) -------------------------------------------
+
+export async function gotoRoute53Dashboard(): Promise<void> {
+  await navigateHash("#/route53");
+  await waitDisplayed(T("route53-dashboard-heading"));
+}
+
+export async function gotoHostedZones(): Promise<void> {
+  await navigateHash("#/route53/hosted-zones");
+  await waitDisplayed(T("zones-heading"));
+  await waitDisplayed(T("zones-count"));
+}
+
+export async function gotoHostedZoneDetail(zoneId: string): Promise<void> {
+  await navigateHash(`#/route53/hosted-zones/${encodeURIComponent(zoneId)}`);
+  await waitDisplayed(T("record-create"));
+}
+
+export async function gotoHealthChecks(): Promise<void> {
+  await navigateHash("#/route53/health-checks");
+  await waitDisplayed(T("healthchecks-heading"));
 }
 
 export { $, $$, browser, expect };

@@ -11,6 +11,7 @@ import { OpenSearchClient } from "@aws-sdk/client-opensearch";
 import { AthenaClient } from "@aws-sdk/client-athena";
 import { KafkaClient } from "@aws-sdk/client-kafka";
 import { RDSClient } from "@aws-sdk/client-rds";
+import { Route53Client } from "@aws-sdk/client-route-53";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 import { SFNClient } from "@aws-sdk/client-sfn";
@@ -147,6 +148,8 @@ export function makeKafkaClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): K
   return new KafkaClient({ endpoint, region, credentials });
 export function makeSsmClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): SSMClient {
   return new SSMClient({ endpoint, region, credentials });
+export function makeRoute53Client(endpoint = E2E_ENDPOINT, region = E2E_REGION): Route53Client {
+  return new Route53Client({ endpoint, region, credentials });
 }
 
 /** True if an SDK error looks like "this emulator does not implement the op". */

@@ -19,6 +19,7 @@ import { opensearchService } from "../features/opensearch/service";
 import { athenaService } from "../features/athena/service";
 import { mskService } from "../features/msk/service";
 import { ssmService } from "../features/ssm/service";
+import { route53Service } from "../features/route53/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -61,7 +62,6 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["api-gateway", "API Gateway"],
   ["appsync", "AppSync"],
   ["ses", "SES"],
-  ["route53", "Route 53"],
   ["cloudfront", "CloudFront"],
   ["elb", "Elastic Load Balancing"],
   ["auto-scaling", "Auto Scaling"],
@@ -125,6 +125,7 @@ export const SERVICES: ServiceDefinition[] = [
   athenaService,
   mskService,
   ssmService,
+  route53Service,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 

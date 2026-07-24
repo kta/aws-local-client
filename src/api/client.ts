@@ -14,6 +14,7 @@ import { ecr } from "./ecr";
 import { opensearch } from "./opensearch";
 import { msk } from "./msk";
 import { rds } from "./rds";
+import { route53 } from "./route53";
 import { s3 } from "./s3";
 import { secretsManager } from "./secretsmanager";
 import { sns } from "./sns";
@@ -56,4 +57,5 @@ export const api = {
   athena,
   msk,
   ssm,
+  route53,
 };

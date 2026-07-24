@@ -54,6 +54,7 @@ import { UpdateStateMachineCommand } from "@aws-sdk/client-sfn";
   DeleteDomainCommand,
   ListDomainNamesCommand,
 } from "@aws-sdk/client-opensearch";
+import { ListHealthChecksCommand } from "@aws-sdk/client-route-53";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import {
   CreateApiKeyCommand,
@@ -76,6 +77,7 @@ import {
   makeOpenSearchClient,
   makeAthenaClient,
   makeKafkaClient,
+  makeRoute53Client,
   makeS3Client,
   makeSecretsManagerClient,
   makeSfnClient,
@@ -143,6 +145,7 @@ export type CapabilityId =
   | "athena.workgroups"
   | "athena.namedQueries";
   | "kafka.clusters";
+  | "route53.healthChecks";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators.
  *  `unknown service` covers kumo, which does not route the CloudWatch
@@ -468,6 +471,19 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       const text = `${err.name ?? ""} ${err.message ?? ""}`;
       if (/no ?such ?bucket|not ?found/i.test(text)) return false;
       if (err.$metadata?.httpStatusCode === 404) return false;
+  // ListHealthChecks takes no resource, so on any implementation it succeeds.
+  // kumo does not implement Route 53 health checks and answers the endpoint
+  // with a plain HTTP 404, which is neither an AWS "unsupported" error nor a
+  // NotFound for a specific resource — so ANY service response error (a status
+  // code is present) means unsupported here; only transport errors re-throw.
+  "route53.healthChecks": async () => {
+    try {
+      await makeRoute53Client().send(new ListHealthChecksCommand({}));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+      if (status !== undefined) return false;
       throw e;
     }
   },

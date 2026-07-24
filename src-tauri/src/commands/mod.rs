@@ -13,6 +13,7 @@ pub mod ecr;
 pub mod opensearch;
 pub mod msk;
 pub mod rds;
+pub mod route53;
 pub mod s3;
 pub mod secretsmanager;
 pub mod sns;
