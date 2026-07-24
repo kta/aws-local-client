@@ -2,6 +2,7 @@ import { RDSClient } from "@aws-sdk/client-rds";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SNSClient } from "@aws-sdk/client-sns";
 import { SQSClient } from "@aws-sdk/client-sqs";
+import { SSMClient } from "@aws-sdk/client-ssm";
 
 /**
  * AWS SDK client factories for the SQS / SNS / S3 / RDS E2E specs (R22-R35).
@@ -32,6 +33,10 @@ export function makeS3Client(endpoint = E2E_ENDPOINT, region = E2E_REGION): S3Cl
 
 export function makeRdsClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): RDSClient {
   return new RDSClient({ endpoint, region, credentials });
+}
+
+export function makeSsmClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): SSMClient {
+  return new SSMClient({ endpoint, region, credentials });
 }
 
 /** True if an SDK error looks like "this emulator does not implement the op". */
