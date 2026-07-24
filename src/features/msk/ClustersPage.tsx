@@ -14,10 +14,10 @@ import {
   PageHeader,
   StatusBadge,
 } from "../../components/ui";
-import { isUnsupportedOperation } from "../../lib/unsupported";
 import { useProfileScopedFetch } from "../../lib/useProfileScopedFetch";
 import { useConnections } from "../../state/connections";
 import { CreateClusterModal } from "./CreateClusterModal";
+import { isMskUnsupported } from "./unsupported";
 import { UnsupportedBanner } from "./UnsupportedBanner";
 
 export function ClustersPage() {
@@ -46,7 +46,7 @@ export function ClustersPage() {
 
   // R93: an unsupported load error takes over from the generic error banner and
   // hides the create action.
-  const unsupported = loadError && isUnsupportedOperation(loadError) ? loadError : null;
+  const unsupported = loadError && isMskUnsupported(loadError) ? loadError : null;
   const error = opError ?? (loadError && !unsupported ? loadError : null);
 
   const retry = async () => {

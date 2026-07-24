@@ -13,8 +13,8 @@ import {
   StatusBadge,
   SummaryCards,
 } from "../../components/ui";
-import { isUnsupportedOperation } from "../../lib/unsupported";
 import { useProfileScopedFetch } from "../../lib/useProfileScopedFetch";
+import { isMskUnsupported } from "./unsupported";
 import { UnsupportedBanner } from "./UnsupportedBanner";
 
 export function DashboardPage() {
@@ -30,7 +30,7 @@ export function DashboardPage() {
 
   // R93: an unsupported list takes over the whole page with the shared
   // msk-unsupported banner; other errors stay a normal error banner.
-  const unsupported = loadError && isUnsupportedOperation(loadError) ? loadError : null;
+  const unsupported = loadError && isMskUnsupported(loadError) ? loadError : null;
   const error = loadError && !unsupported ? loadError : null;
 
   const activeCount = clusters.filter((c) => c.state === "ACTIVE").length;
