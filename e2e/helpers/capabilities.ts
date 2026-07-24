@@ -19,6 +19,8 @@ import {
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import { makeClient } from "./emulator";
 import {
+  awsQuery,
+  cwQuery,
   E2E_ENDPOINT,
   isUnsupportedError,
   makeS3Client,
@@ -62,11 +64,15 @@ export type CapabilityId =
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
-  | "s3.folderKeys";
+  | "s3.folderKeys"
+  | "cloudwatch.metrics"
+  | "cloudwatch.alarms";
 
-/** Unsupported-operation shapes seen in raw response bodies across emulators. */
+/** Unsupported-operation shapes seen in raw response bodies across emulators.
+ *  `unknown service` covers kumo, which does not route the CloudWatch
+ *  `monitoring` service at all (`{"__type":"UnknownService"}`). */
 function isUnsupportedText(text: string): boolean {
-  return /unknown ?operation|unknownaction|not ?implemented|not supported|invalidaction|is not valid|pro feature/i.test(
+  return /unknown ?operation|unknownaction|unknown ?service|not ?implemented|not supported|invalidaction|is not valid|pro feature/i.test(
     text,
   );
 }
@@ -90,30 +96,17 @@ function serviceErrorMeansImplemented(e: unknown): boolean {
 }
 
 /**
- * Raw RDS Query-protocol call. The AWS SDK cannot be used for RDS probes:
+ * Raw RDS Query-protocol call — a thin wrapper over the shared `awsQuery`
+ * helper (`api/rds`, API version 2014-10-31), behaviour-identical to the
+ * former inline implementation. The AWS SDK cannot be used for RDS probes:
  * kumo answers unsupported RDS actions with a JSON error body on this XML
- * protocol, which the SDK turns into an opaque deserialization error. A raw
- * HTTP call lets us classify the body text directly on every emulator.
- * The `api/rds` User-Agent token is required by kumo to disambiguate action
- * names shared across services (e.g. CreateDBInstance vs DocumentDB).
+ * protocol, which the SDK turns into an opaque deserialization error.
  */
-async function rdsQuery(
+function rdsQuery(
   action: string,
   params: Record<string, string> = {},
 ): Promise<{ ok: boolean; body: string }> {
-  const form = new URLSearchParams({ Action: action, Version: "2014-10-31", ...params });
-  const res = await fetch(`${E2E_ENDPOINT}/`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded; charset=utf-8",
-      "user-agent": "aws-sdk-js/3.0 api/rds#3.0",
-      // Emulators do not verify signatures but some route by the credential scope.
-      authorization:
-        "AWS4-HMAC-SHA256 Credential=dummy/20260101/us-east-1/rds/aws4_request, SignedHeaders=host, Signature=dummy",
-    },
-    body: form.toString(),
-  });
-  return { ok: res.ok, body: await res.text() };
+  return awsQuery("rds", action, params, "2014-10-31");
 }
 
 /** RDS describe-style probe: the call itself must succeed. */
@@ -292,7 +285,22 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       await s3.send(new DeleteBucketCommand({ Bucket: bucket })).catch(() => {});
     }
   },
+
+  // CloudWatch Metrics/Alarms via the legacy Query protocol (`monitoring`
+  // service). kumo does not route the service at all (UnknownService); the SDK
+  // is unusable here because localstack:3 rejects its CBOR encoding, so the
+  // probe (like the app's Rust client) speaks raw Query HTTP.
+  "cloudwatch.metrics": () => cwQueryProbe("ListMetrics"),
+  "cloudwatch.alarms": () => cwQueryProbe("DescribeAlarms"),
 };
+
+/** CloudWatch Query-protocol probe: the describe-style call itself must succeed. */
+async function cwQueryProbe(action: string): Promise<boolean> {
+  const { ok, body } = await cwQuery(action);
+  if (isUnsupportedText(body)) return false;
+  if (ok) return true;
+  throw new Error(`capability probe ${action} failed unexpectedly: ${body.slice(0, 300)}`);
+}
 
 const cache = new Map<CapabilityId, Promise<boolean>>();
 
