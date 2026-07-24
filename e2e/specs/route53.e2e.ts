@@ -24,7 +24,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeRoute53Client } from "../helpers/aws";
-import { expectCovered, gate } from "../helpers/capabilities";
+import { expectCovered, gate, markCovered } from "../helpers/capabilities";
 
 /**
  * Route 53 requirements (R96-R98). Fixtures are seeded / verified directly via
@@ -75,10 +75,16 @@ describe("route53", () => {
         /* best effort */
       }
     }
+    // R96/R97 are unconditional (all four emulators implement hosted zones and
+    // record sets); R98 (health checks) is capability-gated with a symmetric
+    // unsupported test.
+    expectCovered("R96");
+    expectCovered("R97");
     expectCovered("R98");
   });
 
   it("R96: UI creates, lists and deletes a hosted zone", async () => {
+    markCovered("R96");
     const name = `t96-${stamp}.example.com`;
     const fqdn = `${name}.`; // Route 53 stores the zone name with a trailing dot.
 
@@ -138,6 +144,7 @@ describe("route53", () => {
   });
 
   it("R97: zone detail creates, edits (UPSERT) and deletes a record", async () => {
+    markCovered("R97");
     const zoneName = `t97-${stamp}.example.com`;
     const zoneId = await seedZone(zoneName);
     const recName = `www.${zoneName}`;
