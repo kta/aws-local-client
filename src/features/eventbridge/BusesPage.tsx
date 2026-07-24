@@ -87,17 +87,25 @@ export function BusesPage() {
           titleTestId="buses-heading"
           countTestId="buses-count"
         >
-          <button
-            onClick={() => selectedBus && setDeleting(selectedBus)}
-            disabled={!selectedBus}
-            data-testid="buses-delete"
-            className="rounded-lg border border-[color-mix(in_srgb,#d13212_45%,#d9dee3)] px-[14px] py-[6px] text-[13px] font-semibold text-[#d13212] hover:border-[#5f6b7a] disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            削除
-          </button>
-          <Button variant="primary" onClick={() => setCreating(true)} data-testid="buses-create">
-            イベントバスの作成
-          </Button>
+          {!unsupported && (
+            <>
+              <button
+                onClick={() => selectedBus && setDeleting(selectedBus)}
+                disabled={!selectedBus}
+                data-testid="buses-delete"
+                className="rounded-lg border border-[color-mix(in_srgb,#d13212_45%,#d9dee3)] px-[14px] py-[6px] text-[13px] font-semibold text-[#d13212] hover:border-[#5f6b7a] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                削除
+              </button>
+              <Button
+                variant="primary"
+                onClick={() => setCreating(true)}
+                data-testid="buses-create"
+              >
+                イベントバスの作成
+              </Button>
+            </>
+          )}
         </PageHeader>
 
         {unsupported && (

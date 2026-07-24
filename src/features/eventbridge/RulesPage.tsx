@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, toAppError } from "../../api/client";
 import type { EventBusSummary, RuleSummary, TargetSummary } from "../../api/eventbridge";
 import type { AppError, ConnectionProfile } from "../../api/types";
@@ -42,17 +42,24 @@ export function RulesPage() {
     null,
   );
 
+  // Guards against a stale response overwriting a newer one when the bus
+  // selector changes faster than the fetch resolves.
+  const loadNonce = useRef(0);
   const loadRules = useCallback(async () => {
     if (!active) return;
+    const nonce = ++loadNonce.current;
     setLoading(true);
     setFetchError(null);
     try {
-      setRules(await api.eventbridge.listRules(active, bus));
+      const next = await api.eventbridge.listRules(active, bus);
+      if (nonce !== loadNonce.current) return; // a newer load superseded this one
+      setRules(next);
     } catch (e) {
+      if (nonce !== loadNonce.current) return;
       setRules([]);
       setFetchError(toAppError(e));
     } finally {
-      setLoading(false);
+      if (nonce === loadNonce.current) setLoading(false);
     }
   }, [active, bus]);
 
@@ -115,12 +122,20 @@ export function RulesPage() {
     <ConnectionRequired>
       <div className="p-[22px] px-6 pb-[30px]">
         <PageHeader title="ルール" titleTestId="rules-heading">
-          <Button onClick={() => setPutting(true)} data-testid="rules-put-events">
-            イベントを送信
-          </Button>
-          <Button variant="primary" onClick={() => setCreating(true)} data-testid="rules-create">
-            ルールの作成
-          </Button>
+          {!unsupported && (
+            <>
+              <Button onClick={() => setPutting(true)} data-testid="rules-put-events">
+                イベントを送信
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setCreating(true)}
+                data-testid="rules-create"
+              >
+                ルールの作成
+              </Button>
+            </>
+          )}
         </PageHeader>
 
         {unsupported && (
