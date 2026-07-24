@@ -16,11 +16,17 @@ import {
   ListTagsForResourceCommand,
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
+import {
+  CreateDomainCommand,
+  DeleteDomainCommand,
+  ListDomainNamesCommand,
+} from "@aws-sdk/client-opensearch";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import { makeClient } from "./emulator";
 import {
   E2E_ENDPOINT,
   isUnsupportedError,
+  makeOpenSearchClient,
   makeS3Client,
   makeSnsClient,
   makeSqsClient,
@@ -62,7 +68,9 @@ export type CapabilityId =
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
-  | "s3.folderKeys";
+  | "s3.folderKeys"
+  | "opensearch.domains"
+  | "opensearch.create";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -198,6 +206,35 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
     }),
 
   "rds.parameterGroups.describe": () => rdsDescribeProbe("DescribeDBParameterGroups"),
+
+  // Domain describe: ListDomainNames must be routed. kumo answers unsupported
+  // (its console has no OpenSearch); a NotFound-style/other service error proves
+  // the operation exists.
+  "opensearch.domains": async () => {
+    try {
+      await makeOpenSearchClient().send(new ListDomainNamesCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // Domain create needs a real OpenSearch node: floci only creates one when
+  // started with the docker socket mounted (T0). Any create rejection — the
+  // socket-less "cannot start container" error included — counts as
+  // not-create-capable, mirroring the rds.instances.create probe. The probe
+  // domain is deleted promptly because floci spins up a heavy real container.
+  "opensearch.create": async () => {
+    const os = makeOpenSearchClient();
+    const name = `nlsd-os-probe-${PROBE_STAMP % 100000}`;
+    try {
+      await os.send(new CreateDomainCommand({ DomainName: name }));
+    } catch {
+      return false;
+    }
+    await os.send(new DeleteDomainCommand({ DomainName: name })).catch(() => {});
+    return true;
+  },
 
   // A missing queue is enough: QueueDoesNotExist proves the action is routed.
   "sqs.dlqSources": async () => {
