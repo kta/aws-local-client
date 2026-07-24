@@ -245,6 +245,11 @@ pub fn run() {
             commands::msk::msk_delete_cluster,
             commands::msk::msk_describe_cluster,
             commands::msk::msk_get_bootstrap_brokers,
+            commands::ssm::ssm_list_parameters,
+            commands::ssm::ssm_get_parameter,
+            commands::ssm::ssm_put_parameter,
+            commands::ssm::ssm_delete_parameter,
+            commands::ssm::ssm_get_parameter_history,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

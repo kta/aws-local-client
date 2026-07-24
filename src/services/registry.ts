@@ -18,6 +18,7 @@ import { stepFunctionsService } from "../features/step-functions/service";
 import { opensearchService } from "../features/opensearch/service";
 import { athenaService } from "../features/athena/service";
 import { mskService } from "../features/msk/service";
+import { ssmService } from "../features/ssm/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -52,7 +53,6 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["firehose", "Data Firehose"],
   ["cloudwatch", "CloudWatch"],
   ["secrets-manager", "Secrets Manager"],
-  ["ssm", "Systems Manager"],
   ["kms", "KMS"],
   ["iam", "IAM"],
   ["cloudformation", "CloudFormation"],
@@ -124,6 +124,7 @@ export const SERVICES: ServiceDefinition[] = [
   opensearchService,
   athenaService,
   mskService,
+  ssmService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 

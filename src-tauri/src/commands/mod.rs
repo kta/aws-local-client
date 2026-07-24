@@ -18,3 +18,4 @@ pub mod secretsmanager;
 pub mod sns;
 pub mod sqs;
 pub mod stepfunctions;
+pub mod ssm;

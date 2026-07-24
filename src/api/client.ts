@@ -19,6 +19,7 @@ import { secretsManager } from "./secretsmanager";
 import { sns } from "./sns";
 import { sqs } from "./sqs";
 import { stepfunctions } from "./stepfunctions";
+import { ssm } from "./ssm";
 
 export function toAppError(e: unknown): AppError {
   if (typeof e === "object" && e !== null && "kind" in e && "message" in e) {
@@ -54,4 +55,5 @@ export const api = {
   opensearch,
   athena,
   msk,
+  ssm,
 };
