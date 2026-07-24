@@ -1,5 +1,6 @@
 pub mod apigateway;
 pub mod cognito;
+pub mod cloudformation;
 pub mod dynamodb;
 pub mod lambda;
 pub mod eventbridge;

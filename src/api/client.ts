@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { AppError, ConnectionProfile, DetectedEndpoint } from "./types";
 import { apigateway } from "./apigateway";
 import { cognito } from "./cognito";
+import { cloudformation } from "./cloudformation";
 import { ddb } from "./dynamodb";
 import { lambda } from "./lambda";
 import { eventbridge } from "./eventbridge";
@@ -38,4 +39,5 @@ export const api = {
   eventbridge,
   secretsManager,
   elasticache,
+  cloudformation,
 };

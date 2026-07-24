@@ -14,6 +14,7 @@ import {
   CreateTopicCommand,
   DeleteTopicCommand,
   ListTagsForResourceCommand,
+  ListTopicsCommand,
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
 import {
@@ -33,6 +34,10 @@ import {
   TagResourceCommand as SecretsTagResourceCommand,
 } from "@aws-sdk/client-secrets-manager";
 import { DescribeReplicationGroupsCommand } from "@aws-sdk/client-elasticache";
+  CreateStackCommand,
+  DeleteStackCommand,
+  DescribeStacksCommand,
+} from "@aws-sdk/client-cloudformation";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import {
   CreateApiKeyCommand,
@@ -46,6 +51,7 @@ import {
   makeApiGatewayClient,
   makeCognitoClient,
   makeElastiCacheClient,
+  makeCfnClient,
   makeS3Client,
   makeSecretsManagerClient,
   makeSnsClient,
@@ -87,6 +93,7 @@ export type CapabilityId =
   | "rds.snapshots.restore"
   | "rds.parameterGroups.describe"
   | "elasticache.describe"
+  | "cloudformation.resourceCreation"
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
@@ -245,6 +252,44 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return true;
     } catch (e) {
       return serviceErrorMeansImplemented(e);
+  // Functional round-trip: kumo's CloudFormation is control-plane only — it
+  // reaches CREATE_COMPLETE but never provisions the templated resource, so
+  // only "the SNS topic the template declares actually exists afterwards"
+  // proves resources are really created. Real emulators (ministack/floci/
+  // localstack) provision it; kumo does not.
+  "cloudformation.resourceCreation": async () => {
+    const cfn = makeCfnClient();
+    const sns = makeSnsClient();
+    const stack = `nlsd-cap-cfn-${PROBE_STAMP}`;
+    const topic = `nlsd-cap-cfn-topic-${PROBE_STAMP}`;
+    const template = JSON.stringify({
+      Resources: {
+        ProbeTopic: { Type: "AWS::SNS::Topic", Properties: { TopicName: topic } },
+      },
+    });
+    try {
+      await cfn.send(new CreateStackCommand({ StackName: stack, TemplateBody: template }));
+    } catch (e) {
+      serviceErrorMeansImplemented(e); // re-throws transport errors
+      return false; // any create rejection => not resource-creation-capable
+    }
+    try {
+      // Wait for CREATE_COMPLETE (bounded), then check the real resource.
+      for (let i = 0; i < 30; i++) {
+        try {
+          const out = await cfn.send(new DescribeStacksCommand({ StackName: stack }));
+          const st = out.Stacks?.[0]?.StackStatus;
+          if (st === "CREATE_COMPLETE") break;
+          if (st?.endsWith("_FAILED")) return false;
+        } catch {
+          /* not ready yet */
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      const topics = await sns.send(new ListTopicsCommand({}));
+      return (topics.Topics ?? []).some((t) => t.TopicArn?.includes(topic));
+    } finally {
+      await cfn.send(new DeleteStackCommand({ StackName: stack })).catch(() => {});
     }
   },
 

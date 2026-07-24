@@ -10,6 +10,7 @@ import { cognitoService } from "../features/cognito/service";
 import { eventbridgeService } from "../features/eventbridge/service";
 import { secretsManagerService } from "../features/secrets-manager/service";
 import { elasticacheService } from "../features/elasticache/service";
+import { cloudformationService } from "../features/cloudformation/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -47,6 +48,7 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["iam", "IAM"],
   ["cloudformation", "CloudFormation"],
   // secrets-manager promoted to a real service below.
+  ["cognito", "Cognito"],
   ["api-gateway", "API Gateway"],
   ["appsync", "AppSync"],
   ["ses", "SES"],
@@ -108,6 +110,7 @@ export const SERVICES: ServiceDefinition[] = [
   eventbridgeService,
   secretsManagerService,
   elasticacheService,
+  cloudformationService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 
