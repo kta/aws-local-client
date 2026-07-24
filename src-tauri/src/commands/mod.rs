@@ -1,6 +1,8 @@
 pub mod apigateway;
 pub mod cognito;
 pub mod cloudformation;
+pub mod cloudwatch;
+pub mod cloudwatch_query;
 pub mod dynamodb;
 pub mod lambda;
 pub mod eventbridge;

@@ -823,6 +823,32 @@ export async function gotoRepositories(): Promise<void> {
 export async function gotoRepositoryDetail(name: string): Promise<void> {
   await navigateHash(`#/ecr/repositories/${encodeURIComponent(name)}`);
   await waitDisplayed(T("ecr-detail-heading"));
+// --- CloudWatch navigation (R80-R83) -----------------------------------------
+
+export async function gotoCloudwatchDashboard(): Promise<void> {
+  await navigateHash("#/cloudwatch");
+  await waitDisplayed(T("cloudwatch-dashboard-heading"));
+}
+
+export async function gotoLogGroups(): Promise<void> {
+  await navigateHash("#/cloudwatch/log-groups");
+  await waitDisplayed(T("log-groups-heading"));
+  await waitDisplayed(T("log-groups-count"));
+}
+
+export async function gotoLogGroupDetail(name: string): Promise<void> {
+  await navigateHash(`#/cloudwatch/log-groups/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("log-group-detail-heading"));
+}
+
+export async function gotoMetrics(): Promise<void> {
+  await navigateHash("#/cloudwatch/metrics");
+  await waitDisplayed(T("metrics-heading"));
+}
+
+export async function gotoAlarms(): Promise<void> {
+  await navigateHash("#/cloudwatch/alarms");
+  await waitDisplayed(T("alarms-heading"));
 }
 
 export { $, $$, browser, expect };

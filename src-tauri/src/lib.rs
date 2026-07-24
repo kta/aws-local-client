@@ -207,6 +207,17 @@ pub fn run() {
             commands::ecr::ecr_create_repository,
             commands::ecr::ecr_delete_repository,
             commands::ecr::ecr_list_images,
+            commands::cloudwatch::cw_list_log_groups,
+            commands::cloudwatch::cw_create_log_group,
+            commands::cloudwatch::cw_delete_log_group,
+            commands::cloudwatch::cw_list_log_streams,
+            commands::cloudwatch::cw_get_log_events,
+            commands::cloudwatch::cw_filter_log_events,
+            commands::cloudwatch_query::cw_list_metrics,
+            commands::cloudwatch_query::cw_get_metric_statistics,
+            commands::cloudwatch_query::cw_describe_alarms,
+            commands::cloudwatch_query::cw_put_metric_alarm,
+            commands::cloudwatch_query::cw_delete_alarms,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

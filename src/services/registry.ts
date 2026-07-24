@@ -13,6 +13,7 @@ import { elasticacheService } from "../features/elasticache/service";
 import { cloudformationService } from "../features/cloudformation/service";
 import { ecsService } from "../features/ecs/service";
 import { ecrService } from "../features/ecr/service";
+import { cloudwatchService } from "../features/cloudwatch/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -45,6 +46,7 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["kinesis", "Kinesis"],
   ["firehose", "Data Firehose"],
   ["cloudwatch", "CloudWatch"],
+  ["secrets-manager", "Secrets Manager"],
   ["ssm", "Systems Manager"],
   ["kms", "KMS"],
   ["iam", "IAM"],
@@ -115,6 +117,7 @@ export const SERVICES: ServiceDefinition[] = [
   cloudformationService,
   ecsService,
   ecrService,
+  cloudwatchService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 
