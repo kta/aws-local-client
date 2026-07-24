@@ -463,3 +463,53 @@ Rust `commands/route53.rs`(SDK: aws-sdk-route53):
    ローカル green(カバレッジガードにより全 R-id がどのエミュレータでも最低 1 テスト実行)
 3. `e2e/SPEC-COVERAGE.md` 100%(R51–R98 全行にテスト対応)
 4. CI(ci.yml / e2e.yml / build.yml)green → merge
+
+## 8. 実装時の確定事項(統合フェーズで確定)
+
+設計から変わった点・実装で確定した事項。統合 E2E(ministack / localstack:3 / floci の
+3 種をローカル green、kumo は CI 検証)で判明したエミュレータ差分を含む。
+
+### 8.1 追加した capability(`e2e/helpers/capabilities.ts`)
+
+設計時に想定した以上に、操作単位のゲートを追加した(対称な unsupported 側テスト + カバレッジ付き):
+
+- `apigateway.apiKeys` / `apigateway.apiKeyDelete` — API キーの作成/一覧と削除を分離。
+- `cognito.userPools` / `cognito.groups` / `cognito.adminUserState` — プール・グループ・
+  ユーザー有効/無効トグルを分離。
+- `secretsmanager.tags` — タグ変更 API の有無。
+- `sfn.updateStateMachine` — 定義更新の可否。
+- `athena.query` / `athena.workgroups` / `athena.namedQueries`。
+- `cloudformation.resourceCreation` — CREATE 時にテンプレートのリソースを実プロビジョンするか。
+- `cloudformation.resourceReplacement`(新規) — **localstack:3 は UPDATE_COMPLETE に達しても
+  置換リソースを再プロビジョンしない**ため、create->update->置換確認まで回すプローブで判定。
+- `rds.instances.stopStart`(新規) — **floci は StopDBInstance/StartDBInstance を
+  UnsupportedOperation で拒否**する。
+- `rds.instances.modifyApplies`(新規) — **floci は ModifyDBInstance を受理するが
+  AllocatedStorage を適用しない**(create->modify->反映確認のフルサイクルで判定)。
+- `rds.instances.create` プローブはフルスイート負荷下の一過性失敗を誤検知しないようリトライ化。
+
+### 8.2 エミュレータ差分と対処
+
+- **CloudWatch は legacy Query プロトコル**(`Action=...&Version=2010-08-01`、`monitoring` サービス、
+  `src-tauri/src/commands/cloudwatch_query.rs`)で実装。モダン SDK の smithy-rpc-v2-cbor を
+  localstack:3 が拒否するため。メトリクス/アラームは SDK クライアントを持たせない。
+- **リージョンスコープ整合**: 一部エミュレータ(ministack 等)は CloudWatch を
+  credential-scope のリージョンで分割保存する。テストの生 Query ヘルパ(`awsQuery`)は
+  ハードコードの us-east-1 ではなく **アプリ接続と同じ `E2E_REGION`** を使う必要がある。
+- **GetMetricStatistics** はローカルの時計ずれ/現在期間の部分点を strict な EndTime から
+  漏らさないよう、アプリ側で EndTime を数分先まで広げて問い合わせる。
+- **Secrets Manager**: 削除猶予中(DeletedDate 付き)のシークレットは ListSecrets に残る
+  (localstack:3、AWS 準拠)。コンソール一覧では除外して「削除済み」として扱う。
+- **Lambda Layers**: localstack:3 は ListLayers を 500 "list index out of range" で返す。
+  アプリ側バナー判定と capability プローブの双方で layers-unsupported として扱う。
+- **Athena**: クエリ実行は結果出力先バケットが前提。テストは事前に results バケットを用意する。
+- **floci CFN は stack Parameters を返さない**ため、R73 は resources/outputs/template のみ
+  堅く検証し、parameters/events タブはレンダー確認に留める。
+- **MSK(floci = Redpanda)**: クラスタは作成後 ~2s で ACTIVE。一覧はマウント時 1 回フェッチのため、
+  E2E は再ナビゲートで状態遷移を観測する。
+
+### 8.3 統合時の共有ファイル方針
+
+- coming-soon 一覧は、実装済みサービス ID を実行時に必ず除外(registry の防御的フィルタ)。
+- 無条件テスト(ゲートなし)の R-id は `markCovered` を明示呼び出し。ある capability 下でのみ
+  意味を持つファミリは `expectCoveredIf` / `expectCoveredUnless` を使う。

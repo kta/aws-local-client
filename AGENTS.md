@@ -2,8 +2,13 @@
 
 neo-localstack-desktop is an AWS-console-style desktop client for local AWS emulators
 (LocalStack / floci / ministack / kumo / amazon dynamodb-local), selected by endpoint URL.
-Stack: Tauri 2 shell, React 19 + TypeScript (Vite) frontend, Rust backend using aws-sdk-dynamodb.
-Phase 1 covers DynamoDB only. UI copy is Japanese; the codebase is English.
+Stack: Tauri 2 shell, React 19 + TypeScript (Vite) frontend, Rust backend using the aws-sdk-* crates.
+Supported services: DynamoDB (Phase 1); SQS, SNS, S3, RDS (Phase 2); and the Top20
+expansion — Lambda, API Gateway, Cognito, EventBridge, Secrets Manager, ElastiCache,
+CloudFormation, ECS, ECR, CloudWatch, Step Functions, OpenSearch, Athena, MSK, Systems
+Manager (SSM), Route 53. Emulator API gaps are handled per-operation via capability gates
+(`e2e/helpers/capabilities.ts`), never by assuming one emulator's whole feature set.
+UI copy is Japanese; the codebase is English.
 
 ## Setup & Commands
 

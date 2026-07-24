@@ -5,10 +5,16 @@
 [![Build](https://github.com/kta/aws-local-client/actions/workflows/build.yml/badge.svg)](https://github.com/kta/aws-local-client/actions/workflows/build.yml)
 
 ローカル AWS エミュレータ(LocalStack / floci / ministack / kumo / dynamodb-local など)
-向けの AWS コンソール風デスクトップクライアント。Phase 1 は DynamoDB に対応。
+向けの AWS コンソール風デスクトップクライアント。
 
-接続先はエンドポイント URL で指定するため、DynamoDB 互換のローカルエミュレータであれば
-LocalStack・floci・ministack・kumo・amazon/dynamodb-local のいずれでも同じように利用できる。
+対応サービス: DynamoDB(Phase 1)、SQS / SNS / S3 / RDS(Phase 2)、および Top20 拡充の
+Lambda / API Gateway / Cognito / EventBridge / Secrets Manager / ElastiCache /
+CloudFormation / ECS / ECR / CloudWatch / Step Functions / OpenSearch / Athena / MSK /
+Systems Manager(SSM)/ Route 53。
+
+接続先はエンドポイント URL で指定するため、対応エミュレータであれば LocalStack・floci・
+ministack・kumo・amazon/dynamodb-local のいずれでも同じように利用できる。エミュレータごとの
+API 対応差は操作単位の capability ゲートで吸収し、未対応時は各画面が専用バナーを表示する。
 
 ## 機能
 
