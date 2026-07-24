@@ -155,6 +155,18 @@ pub fn run() {
             commands::cognito::cognito_list_groups,
             commands::cognito::cognito_create_group,
             commands::cognito::cognito_delete_group,
+            commands::eventbridge::events_list_buses,
+            commands::eventbridge::events_create_bus,
+            commands::eventbridge::events_delete_bus,
+            commands::eventbridge::events_list_rules,
+            commands::eventbridge::events_put_rule,
+            commands::eventbridge::events_delete_rule,
+            commands::eventbridge::events_enable_rule,
+            commands::eventbridge::events_disable_rule,
+            commands::eventbridge::events_list_targets,
+            commands::eventbridge::events_put_target,
+            commands::eventbridge::events_remove_target,
+            commands::eventbridge::events_put_events,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

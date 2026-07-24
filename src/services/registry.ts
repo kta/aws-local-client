@@ -7,6 +7,7 @@ import { rdsService } from "../features/rds/service";
 import { lambdaService } from "../features/lambda/service";
 import { apiGatewayService } from "../features/api-gateway/service";
 import { cognitoService } from "../features/cognito/service";
+import { eventbridgeService } from "../features/eventbridge/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -34,7 +35,6 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["ecr", "ECR"],
   ["eks", "EKS"],
   ["step-functions", "Step Functions"],
-  ["eventbridge", "EventBridge"],
   ["scheduler", "EventBridge Scheduler"],
   ["pipes", "EventBridge Pipes"],
   ["kinesis", "Kinesis"],
@@ -103,6 +103,7 @@ export const SERVICES: ServiceDefinition[] = [
   lambdaService,
   apiGatewayService,
   cognitoService,
+  eventbridgeService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 

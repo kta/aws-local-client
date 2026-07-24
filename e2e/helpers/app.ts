@@ -680,6 +680,25 @@ export async function gotoBucketBrowser(bucket: string, prefix?: string): Promis
   await clickT("tab-objects");
 }
 
+// --- EventBridge navigation (R63-R65) ----------------------------------------
+
+export async function gotoEventBridgeDashboard(): Promise<void> {
+  await navigateHash("#/eventbridge");
+  await waitDisplayed(T("eb-dashboard-heading"));
+}
+
+export async function gotoEventBuses(): Promise<void> {
+  await navigateHash("#/eventbridge/buses");
+  await waitDisplayed(T("buses-heading"));
+  await waitDisplayed(T("buses-count"));
+}
+
+export async function gotoEventRules(): Promise<void> {
+  await navigateHash("#/eventbridge/rules");
+  await waitDisplayed(T("rules-heading"));
+  await waitDisplayed(T("rules-bus-select"));
+}
+
 export async function gotoInstances(): Promise<void> {
   await navigateHash("#/rds/instances");
   await waitDisplayed(T("instances-heading"));
