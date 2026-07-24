@@ -34,22 +34,26 @@ import {
   InvokeCommand,
   ListLayersCommand,
 } from "@aws-sdk/client-lambda";
+import {
   AdminSetUserPasswordCommand,
   ListGroupsCommand,
   ListUserPoolsCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
+import {
   CreateSecretCommand,
   DeleteSecretCommand,
   DescribeSecretCommand,
   TagResourceCommand as SecretsTagResourceCommand,
 } from "@aws-sdk/client-secrets-manager";
 import { DescribeReplicationGroupsCommand } from "@aws-sdk/client-elasticache";
+import {
   CreateStackCommand,
   DeleteStackCommand,
   DescribeStacksCommand,
 } from "@aws-sdk/client-cloudformation";
 import { ListClustersCommand } from "@aws-sdk/client-ecs";
 import { UpdateStateMachineCommand } from "@aws-sdk/client-sfn";
+import {
   CreateDomainCommand,
   DeleteDomainCommand,
   ListDomainNamesCommand,
@@ -60,7 +64,7 @@ import {
   CreateApiKeyCommand,
   DeleteApiKeyCommand,
 } from "@aws-sdk/client-api-gateway";
-import { ListClustersCommand } from "@aws-sdk/client-kafka";
+import { ListClustersCommand as ListKafkaClustersCommand } from "@aws-sdk/client-kafka";
 import { makeClient } from "./emulator";
 import {
   awsQuery,
@@ -127,24 +131,24 @@ export type CapabilityId =
   | "s3.bucketTagging"
   | "s3.folderKeys"
   | "lambda.invoke"
-  | "lambda.layers";
+  | "lambda.layers"
   | "apigateway.apiKeys"
-  | "apigateway.apiKeyDelete";
+  | "apigateway.apiKeyDelete"
   | "cognito.userPools"
   | "cognito.groups"
-  | "cognito.adminUserState";
-  | "secretsmanager.tags";
-  | "ecs.clusters";
+  | "cognito.adminUserState"
+  | "secretsmanager.tags"
+  | "ecs.clusters"
   | "ecr.repositories"
-  | "ecr.create";
+  | "ecr.create"
   | "cloudwatch.metrics"
-  | "cloudwatch.alarms";
+  | "cloudwatch.alarms"
   | "opensearch.domains"
-  | "opensearch.create";
+  | "opensearch.create"
   | "athena.query"
   | "athena.workgroups"
-  | "athena.namedQueries";
-  | "kafka.clusters";
+  | "athena.namedQueries"
+  | "kafka.clusters"
   | "route53.healthChecks";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators.
@@ -281,6 +285,9 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return true;
     } catch (e) {
       return serviceErrorMeansImplemented(e);
+    }
+  },
+
   // Functional round-trip: kumo's CloudFormation is control-plane only — it
   // reaches CREATE_COMPLETE but never provisions the templated resource, so
   // only "the SNS topic the template declares actually exists afterwards"
@@ -319,12 +326,21 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return (topics.Topics ?? []).some((t) => t.TopicArn?.includes(topic));
     } finally {
       await cfn.send(new DeleteStackCommand({ StackName: stack })).catch(() => {});
+    }
+  },
+
   // ECS control plane. localstack:3 is ECS-Pro-only and rejects ListClusters
   // as unsupported; ministack/floci implement it. A clean ListClusters (or any
   // non-unsupported service error) proves the control plane is available.
   "ecs.clusters": async () => {
     try {
       await makeEcsClient().send(new ListClustersCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
   // Domain describe: ListDomainNames must be routed. kumo answers unsupported
   // (its console has no OpenSearch); a NotFound-style/other service error proves
   // the operation exists.
@@ -471,6 +487,10 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       const text = `${err.name ?? ""} ${err.message ?? ""}`;
       if (/no ?such ?bucket|not ?found/i.test(text)) return false;
       if (err.$metadata?.httpStatusCode === 404) return false;
+      throw e;
+    }
+  },
+
   // ListHealthChecks takes no resource, so on any implementation it succeeds.
   // kumo does not implement Route 53 health checks and answers the endpoint
   // with a plain HTTP 404, which is neither an AWS "unsupported" error nor a
@@ -563,6 +583,9 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
         ?.httpStatusCode;
       if (status !== undefined) return false;
       throw e;
+    }
+  },
+
   // localstack:3 CE answers every cognito-idp action with a "pro feature"
   // error; floci/ministack/kumo implement user pools. A successful ListUserPools
   // is enough.
@@ -664,24 +687,13 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
         .catch(() => {});
     }
   },
+
   // DescribeRepositories: localstack CE answers ECR with a "pro feature" /
   // "not yet implemented" error; ministack/kumo/floci (with docker.sock)
   // implement it.
   "ecr.repositories": async () => {
     try {
       await makeEcrClient().send(new DescribeRepositoriesCommand({}));
-  // StartQueryExecution routes on Athena-capable emulators (floci/ministack/
-  // kumo) and returns an id; localstack:3 CE answers "pro feature". The result
-  // set write may still fail later (missing bucket) — that does not affect
-  // whether the operation is implemented, so probing the start call is enough.
-  "athena.query": async () => {
-    try {
-      await makeAthenaClient().send(
-        new StartQueryExecutionCommand({
-          QueryString: "SELECT 1",
-          ResultConfiguration: { OutputLocation: "s3://nlsd-athena-results/" },
-        }),
-      );
       return true;
     } catch (e) {
       return serviceErrorMeansImplemented(e);
@@ -704,12 +716,32 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       .catch(() => {});
     return true;
   },
+
   // CloudWatch Metrics/Alarms via the legacy Query protocol (`monitoring`
   // service). kumo does not route the service at all (UnknownService); the SDK
   // is unusable here because localstack:3 rejects its CBOR encoding, so the
   // probe (like the app's Rust client) speaks raw Query HTTP.
   "cloudwatch.metrics": () => cwQueryProbe("ListMetrics"),
   "cloudwatch.alarms": () => cwQueryProbe("DescribeAlarms"),
+
+  // StartQueryExecution routes on Athena-capable emulators (floci/ministack/
+  // kumo) and returns an id; localstack:3 CE answers "pro feature". The result
+  // set write may still fail later (missing bucket) — that does not affect
+  // whether the operation is implemented, so probing the start call is enough.
+  "athena.query": async () => {
+    try {
+      await makeAthenaClient().send(
+        new StartQueryExecutionCommand({
+          QueryString: "SELECT 1",
+          ResultConfiguration: { OutputLocation: "s3://nlsd-athena-results/" },
+        }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
   // ListWorkGroups is implemented on floci/ministack; localstack answers "pro
   // feature" and kumo answers InvalidAction (workgroups unimplemented).
   "athena.workgroups": async () => {
@@ -729,12 +761,15 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return true;
     } catch (e) {
       return serviceErrorMeansImplemented(e);
+    }
+  },
+
   // MSK (Kafka). Supported on floci (Redpanda) and ministack; a Pro feature on
   // localstack:3 (answers "pro feature") and absent on kumo (routes MSK actions
   // to a 404 "page not found"). A successful ListClusters proves support.
   "kafka.clusters": async () => {
     try {
-      await makeKafkaClient().send(new ListClustersCommand({}));
+      await makeKafkaClient().send(new ListKafkaClustersCommand({}));
       return true;
     } catch (e) {
       if (isUnsupportedError(e)) return false;

@@ -43,23 +43,13 @@ const comingSoon = (id: string, name: string): ServiceDefinition => ({
 // console-level service (IoT Data -> IoT Core, SES v1/v2 -> SES, ...).
 const FLOCI_COMING_SOON: [string, string][] = [
   ["ec2", "EC2"],
-  ["ecr", "ECR"],
-  ["ecs", "ECS"],
   ["eks", "EKS"],
-  ["step-functions", "Step Functions"],
-  ["eventbridge", "EventBridge"],
   ["scheduler", "EventBridge Scheduler"],
   ["pipes", "EventBridge Pipes"],
   ["kinesis", "Kinesis"],
   ["firehose", "Data Firehose"],
-  ["cloudwatch", "CloudWatch"],
-  ["secrets-manager", "Secrets Manager"],
   ["kms", "KMS"],
   ["iam", "IAM"],
-  ["cloudformation", "CloudFormation"],
-  // secrets-manager promoted to a real service below.
-  ["cognito", "Cognito"],
-  ["api-gateway", "API Gateway"],
   ["appsync", "AppSync"],
   ["ses", "SES"],
   ["cloudfront", "CloudFront"],
@@ -104,7 +94,7 @@ const withOfficialIcon = (s: ServiceDefinition): ServiceDefinition => ({
   icon: SERVICE_ICONS[s.id] ?? s.icon,
 });
 
-export const SERVICES: ServiceDefinition[] = [
+const ENABLED_SERVICES: ServiceDefinition[] = [
   dynamodbService,
   sqsService,
   snsService,
@@ -126,7 +116,18 @@ export const SERVICES: ServiceDefinition[] = [
   mskService,
   ssmService,
   route53Service,
-  ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
+];
+
+// Coming-soon placeholders never shadow a service that now ships for real:
+// filter out any id already present in ENABLED_SERVICES so Home renders each
+// service exactly once.
+const enabledIds = new Set(ENABLED_SERVICES.map((s) => s.id));
+
+export const SERVICES: ServiceDefinition[] = [
+  ...ENABLED_SERVICES,
+  ...FLOCI_COMING_SOON.filter(([id]) => !enabledIds.has(id)).map(([id, name]) =>
+    comingSoon(id, name),
+  ),
 ].map(withOfficialIcon);
 
 export const serviceForPath = (pathname: string): ServiceDefinition | undefined =>

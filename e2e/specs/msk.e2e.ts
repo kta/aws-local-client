@@ -8,8 +8,8 @@ import {
   E2E_ENDPOINT,
   T,
   clickT,
-  gotoClusterDetail,
-  gotoClusters,
+  gotoMskClusterDetail,
+  gotoMskClusters,
   gotoMskDashboard,
   setValueT,
   setupActiveConnection,
@@ -55,7 +55,7 @@ describe("msk", () => {
     await deleteClusterByName(name);
 
     // Create via the UI.
-    await gotoClusters();
+    await gotoMskClusters();
     await clickT("msk-create");
     await setValueT("c-name", name);
     await clickT("c-save");
@@ -74,14 +74,14 @@ describe("msk", () => {
     expect(listed.ClusterInfoList?.some((c) => c.ClusterName === name)).toBe(true);
 
     // Detail page shows a non-empty bootstrap broker string.
-    await gotoClusterDetail(name);
+    await gotoMskClusterDetail(name);
     await waitDisplayed(T("msk-bootstrap-plaintext"), 30000);
     const brokers = await $(T("msk-bootstrap-plaintext")).getText();
     expect(brokers.length).toBeGreaterThan(0);
     expect(brokers).not.toBe("-");
 
     // Delete via the row action (name-confirmation modal).
-    await gotoClusters();
+    await gotoMskClusters();
     await $(row).$(T("msk-delete")).click();
     await setValueT("msk-delete-input", name);
     await clickT("msk-delete-confirm");
@@ -104,7 +104,7 @@ describe("msk", () => {
 
   it("R93: shows the msk-unsupported banner and hides create on the clusters page", async function () {
     await gate(this, "R92-R93", { off: ["kafka.clusters"] });
-    await gotoClusters();
+    await gotoMskClusters();
     await waitDisplayed(T("msk-unsupported"));
     expect((await $(T("msk-unsupported")).getText()).length).toBeGreaterThan(10);
     await expect($(T("msk-create"))).not.toBeExisting();

@@ -740,6 +740,8 @@ export async function gotoApiDetail(id: string): Promise<void> {
 export async function gotoApiKeys(): Promise<void> {
   await navigateHash("#/api-gateway/api-keys");
   await waitDisplayed(T("api-keys-heading"));
+}
+
 // --- Cognito navigation (R60-R62) --------------------------------------------
 
 export async function gotoCognitoDashboard(): Promise<void> {
@@ -755,6 +757,8 @@ export async function gotoUserPools(): Promise<void> {
 export async function gotoUserPoolDetail(id: string): Promise<void> {
   await navigateHash(`#/cognito/user-pools/${encodeURIComponent(id)}`);
   await waitDisplayed(T("tab-users"));
+}
+
 // --- Secrets Manager (R66-R67) -----------------------------------------------
 
 export async function gotoSecrets(): Promise<void> {
@@ -766,6 +770,8 @@ export async function gotoSecrets(): Promise<void> {
 export async function gotoSecretDetail(name: string): Promise<void> {
   await navigateHash(`#/secrets-manager/secrets/${encodeURIComponent(name)}`);
   await waitDisplayed(T("secret-value-toggle"));
+}
+
 // --- ElastiCache navigation (R68-R70) ---------------------------------------
 
 export async function gotoElastiCacheDashboard(): Promise<void> {
@@ -776,6 +782,8 @@ export async function gotoElastiCacheDashboard(): Promise<void> {
 export async function gotoCaches(): Promise<void> {
   await navigateHash("#/elasticache/caches");
   await waitDisplayed(T("caches-heading"));
+}
+
 export async function gotoCfnDashboard(): Promise<void> {
   await navigateHash("#/cloudformation");
   await waitDisplayed(T("cfn-dashboard-heading"));
@@ -789,6 +797,8 @@ export async function gotoStacks(): Promise<void> {
 export async function gotoStackDetail(name: string): Promise<void> {
   await navigateHash(`#/cloudformation/stacks/${encodeURIComponent(name)}`);
   await waitDisplayed(T("stack-detail-heading"));
+}
+
 // --- ECS navigation (R75-R77) ------------------------------------------------
 
 export async function gotoEcsDashboard(): Promise<void> {
@@ -809,6 +819,8 @@ export async function gotoClusterDetail(name: string): Promise<void> {
 export async function gotoTaskDefinitions(): Promise<void> {
   await navigateHash("#/ecs/task-definitions");
   await waitDisplayed(T("ecs-taskdefs-heading"));
+}
+
 // --- ECR navigation (R78-R79) ------------------------------------------------
 
 export async function gotoRepositories(): Promise<void> {
@@ -823,6 +835,8 @@ export async function gotoRepositories(): Promise<void> {
 export async function gotoRepositoryDetail(name: string): Promise<void> {
   await navigateHash(`#/ecr/repositories/${encodeURIComponent(name)}`);
   await waitDisplayed(T("ecr-detail-heading"));
+}
+
 // --- CloudWatch navigation (R80-R83) -----------------------------------------
 
 export async function gotoCloudwatchDashboard(): Promise<void> {
@@ -849,6 +863,8 @@ export async function gotoMetrics(): Promise<void> {
 export async function gotoAlarms(): Promise<void> {
   await navigateHash("#/cloudwatch/alarms");
   await waitDisplayed(T("alarms-heading"));
+}
+
 // --- Step Functions (R84-R86) ------------------------------------------------
 
 export async function gotoSfnDashboard(): Promise<void> {
@@ -865,6 +881,8 @@ export async function gotoStateMachines(): Promise<void> {
 export async function gotoStateMachineDetail(name: string): Promise<void> {
   await navigateHash(`#/step-functions/state-machines/${encodeURIComponent(name)}`);
   await waitDisplayed(T("tab-executions"));
+}
+
 export async function gotoAthenaEditor(): Promise<void> {
   await navigateHash("#/athena");
   await waitDisplayed(T("athena-heading"));
@@ -878,6 +896,8 @@ export async function gotoAthenaSavedQueries(): Promise<void> {
 export async function gotoAthenaWorkgroups(): Promise<void> {
   await navigateHash("#/athena/workgroups");
   await waitDisplayed(T("workgroups-heading"));
+}
+
 // --- MSK navigation (R92-R93) ------------------------------------------------
 
 export async function gotoMskDashboard(): Promise<void> {
@@ -885,14 +905,16 @@ export async function gotoMskDashboard(): Promise<void> {
   await waitDisplayed(T("msk-dashboard-heading"));
 }
 
-export async function gotoClusters(): Promise<void> {
+export async function gotoMskClusters(): Promise<void> {
   await navigateHash("#/msk/clusters");
   await waitDisplayed(T("clusters-heading"));
 }
 
-export async function gotoClusterDetail(name: string): Promise<void> {
+export async function gotoMskClusterDetail(name: string): Promise<void> {
   await navigateHash(`#/msk/clusters/${encodeURIComponent(name)}`);
   await waitDisplayed(T("cluster-detail-heading"));
+}
+
 // --- Route 53 navigation (R96-R98) -------------------------------------------
 
 export async function gotoRoute53Dashboard(): Promise<void> {

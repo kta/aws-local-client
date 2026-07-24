@@ -52,40 +52,58 @@ export function makeRdsClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): RDS
 
 export function makeLambdaClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): LambdaClient {
   return new LambdaClient({ endpoint, region, credentials });
+}
+
 export function makeApiGatewayClient(
   endpoint = E2E_ENDPOINT,
   region = E2E_REGION,
 ): APIGatewayClient {
   return new APIGatewayClient({ endpoint, region, credentials });
+}
+
 export function makeCognitoClient(
   endpoint = E2E_ENDPOINT,
   region = E2E_REGION,
 ): CognitoIdentityProviderClient {
   return new CognitoIdentityProviderClient({ endpoint, region, credentials });
+}
+
 export function makeEventBridgeClient(
   endpoint = E2E_ENDPOINT,
   region = E2E_REGION,
 ): EventBridgeClient {
   return new EventBridgeClient({ endpoint, region, credentials });
+}
+
 export function makeSecretsManagerClient(
   endpoint = E2E_ENDPOINT,
   region = E2E_REGION,
 ): SecretsManagerClient {
   return new SecretsManagerClient({ endpoint, region, credentials });
+}
+
 export function makeElastiCacheClient(
   endpoint = E2E_ENDPOINT,
   region = E2E_REGION,
 ): ElastiCacheClient {
   return new ElastiCacheClient({ endpoint, region, credentials });
+}
+
 export function makeCfnClient(
   endpoint = E2E_ENDPOINT,
   region = E2E_REGION,
 ): CloudFormationClient {
   return new CloudFormationClient({ endpoint, region, credentials });
+}
+
 export function makeEcsClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): ECSClient {
   return new ECSClient({ endpoint, region, credentials });
+}
+
 export function makeEcrClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): ECRClient {
   return new ECRClient({ endpoint, region, credentials });
+}
+
 // CloudWatch Logs speaks the AWS JSON protocol, which every emulator implements,
 // so the SDK works for seeding/verifying log fixtures. CloudWatch Metrics/Alarms
 // do NOT get an SDK client: modern SDKs use smithy-rpc-v2-cbor which localstack:3
@@ -135,19 +153,31 @@ export function cwQuery(
   params: Record<string, string> = {},
 ): Promise<{ ok: boolean; body: string }> {
   return awsQuery("monitoring", action, params, "2010-08-01");
+}
+
 export function makeSfnClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): SFNClient {
   return new SFNClient({ endpoint, region, credentials });
+}
+
 export function makeOpenSearchClient(
   endpoint = E2E_ENDPOINT,
   region = E2E_REGION,
 ): OpenSearchClient {
   return new OpenSearchClient({ endpoint, region, credentials });
+}
+
 export function makeAthenaClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): AthenaClient {
   return new AthenaClient({ endpoint, region, credentials });
+}
+
 export function makeKafkaClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): KafkaClient {
   return new KafkaClient({ endpoint, region, credentials });
+}
+
 export function makeSsmClient(endpoint = E2E_ENDPOINT, region = E2E_REGION): SSMClient {
   return new SSMClient({ endpoint, region, credentials });
+}
+
 export function makeRoute53Client(endpoint = E2E_ENDPOINT, region = E2E_REGION): Route53Client {
   return new Route53Client({ endpoint, region, credentials });
 }
