@@ -28,6 +28,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeEventBridgeClient, makeSqsClient } from "../helpers/aws";
+import { expectCovered, gate, markCovered } from "../helpers/capabilities";
 
 /**
  * EventBridge requirements (R63-R65). Fixtures are seeded / verified directly
@@ -89,6 +90,13 @@ describe("eventbridge", () => {
   });
 
   after(async () => {
+    // Coverage guard: R63/R65 are unconditional; R64 (rule CRUD + targets) is
+    // unconditional and its enable/disable toggle is capability-gated with a
+    // symmetric unsupported-side test, so every requirement is verified on
+    // every emulator.
+    expectCovered("R63");
+    expectCovered("R64");
+    expectCovered("R65");
     for (const name of rules) {
       try {
         await eb.send(new DeleteRuleCommand({ Name: name, Force: true }));
@@ -115,6 +123,7 @@ describe("eventbridge", () => {
   });
 
   it("R63: UI creates, lists and deletes an event bus", async () => {
+    markCovered("R63");
     const name = `bus63-${stamp}`;
     buses.push(name);
 
@@ -174,7 +183,8 @@ describe("eventbridge", () => {
     await waitDisplayed(T("bus-name"));
   });
 
-  it("R64: UI creates a rule, toggles it, and manages an SQS target", async () => {
+  it("R64: UI creates a rule and manages an SQS target", async () => {
+    markCovered("R64");
     const ruleName = `rule64-${stamp}`;
     const queueName = `q64-${stamp}`;
     rules.push(ruleName);
@@ -195,29 +205,6 @@ describe("eventbridge", () => {
         return (list.Rules ?? []).some((r) => r.Name === ruleName);
       },
       { timeout: 20000, timeoutMsg: "rule never appeared via the SDK" },
-    );
-
-    // Toggle to disabled -> the SDK reflects DISABLED.
-    await clickT(`rule-toggle-${ruleName}`);
-    await browser.waitUntil(
-      async () => {
-        const d = await eb.send(
-          new DescribeRuleCommand({ Name: ruleName, EventBusName: "default" }),
-        );
-        return d.State === "DISABLED";
-      },
-      { timeout: 20000, timeoutMsg: "rule was not disabled via the SDK" },
-    );
-    // Toggle back to enabled.
-    await clickT(`rule-toggle-${ruleName}`);
-    await browser.waitUntil(
-      async () => {
-        const d = await eb.send(
-          new DescribeRuleCommand({ Name: ruleName, EventBusName: "default" }),
-        );
-        return d.State === "ENABLED";
-      },
-      { timeout: 20000, timeoutMsg: "rule was not re-enabled via the SDK" },
     );
 
     // Select the rule row to reveal the targets panel, then add an SQS target.
@@ -266,7 +253,69 @@ describe("eventbridge", () => {
     );
   });
 
+  it("R64: UI toggles a rule enabled/disabled", async function () {
+    // Rule enable/disable is capability-gated: ministack/floci/localstack apply
+    // it, kumo answers InvalidAction ("DisableRule is not valid for this
+    // endpoint"). The unsupported side is covered by the symmetric test below.
+    await gate(this, "R64", { on: ["eventbridge.ruleState"] });
+    const ruleName = `rule64t-${stamp}`;
+    rules.push(ruleName);
+
+    await gotoEventRules();
+    await clickT("rules-create");
+    await setValueT("rule-name", ruleName);
+    await setValueT("rule-pattern", '{"source":["nlsd.e2e"]}');
+    await clickT("rule-save");
+    await waitDisplayed(T(`rule-row-${ruleName}`));
+
+    // Toggle to disabled -> the SDK reflects DISABLED.
+    await clickT(`rule-toggle-${ruleName}`);
+    await browser.waitUntil(
+      async () => {
+        const d = await eb.send(
+          new DescribeRuleCommand({ Name: ruleName, EventBusName: "default" }),
+        );
+        return d.State === "DISABLED";
+      },
+      { timeout: 20000, timeoutMsg: "rule was not disabled via the SDK" },
+    );
+    // Toggle back to enabled.
+    await clickT(`rule-toggle-${ruleName}`);
+    await browser.waitUntil(
+      async () => {
+        const d = await eb.send(
+          new DescribeRuleCommand({ Name: ruleName, EventBusName: "default" }),
+        );
+        return d.State === "ENABLED";
+      },
+      { timeout: 20000, timeoutMsg: "rule was not re-enabled via the SDK" },
+    );
+  });
+
+  it("R64: surfaces an error when rule enable/disable is unsupported", async function () {
+    // Symmetric unsupported branch (kumo): clicking the toggle raises the
+    // emulator's InvalidAction error in the page error banner and the rule stays
+    // ENABLED via the SDK — the app does not silently pretend it toggled.
+    await gate(this, "R64", { off: ["eventbridge.ruleState"] });
+    const ruleName = `rule64u-${stamp}`;
+    rules.push(ruleName);
+
+    await gotoEventRules();
+    await clickT("rules-create");
+    await setValueT("rule-name", ruleName);
+    await setValueT("rule-pattern", '{"source":["nlsd.e2e"]}');
+    await clickT("rule-save");
+    await waitDisplayed(T(`rule-row-${ruleName}`));
+
+    await clickT(`rule-toggle-${ruleName}`);
+    await waitDisplayed(T("error-banner"));
+    // The SDK confirms the rule was never actually disabled.
+    const d = await eb.send(new DescribeRuleCommand({ Name: ruleName, EventBusName: "default" }));
+    expect(d.State).toBe("ENABLED");
+  });
+
   it("R65: UI PutEvents is delivered through a matching rule to the SQS target", async () => {
+    markCovered("R65");
     const ruleName = `rule65-${stamp}`;
     const queueName = `q65-${stamp}`;
     rules.push(ruleName);

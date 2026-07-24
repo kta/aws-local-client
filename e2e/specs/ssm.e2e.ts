@@ -18,6 +18,7 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { makeSsmClient } from "../helpers/aws";
+import { expectCovered, gate, markCovered } from "../helpers/capabilities";
 
 /**
  * Systems Manager Parameter Store requirements (R94-R95). Fixtures are seeded /
@@ -64,6 +65,11 @@ describe("ssm", () => {
   });
 
   after(async () => {
+    // R94 is unconditional; R95's value mask/overwrite is unconditional and its
+    // version-history table is capability-gated with a symmetric unsupported
+    // note test, so both requirements are verified on every emulator.
+    expectCovered("R94");
+    expectCovered("R95");
     for (const name of created) {
       try {
         await client.send(new DeleteParameterCommand({ Name: name }));
@@ -74,6 +80,7 @@ describe("ssm", () => {
   });
 
   it("R94: UI creates typed params (SDK verified), prefix filter narrows the list, UI delete removes it", async () => {
+    markCovered("R94");
     const prefix = `/e2e-ssm-${stamp}`;
     const other = `/other-ssm-${stamp}/x`;
     const plain = `${prefix}/plain`;
@@ -149,7 +156,8 @@ describe("ssm", () => {
     );
   });
 
-  it("R95: masks a SecureString then reveals it, overwrite bumps the version, history lists v1 and v2", async () => {
+  it("R95: masks a SecureString then reveals it, and overwrite bumps the version", async () => {
+    markCovered("R95");
     const name = `/e2e-ssm-hist-${stamp}/pw`;
     // Seed version 1 directly through the SDK.
     await seedParameter(name, "secret-v1", "SecureString");
@@ -177,8 +185,24 @@ describe("ssm", () => {
       },
       { timeout: 20000, timeoutMsg: "parameter was not overwritten to version 2" },
     );
+  });
 
-    // --- version history table lists both v1 and v2 ----------------------------
+  it("R95: version history table lists v1 and v2", async function () {
+    // GetParameterHistory is capability-gated: ministack/floci/localstack
+    // implement it; kumo answers "GetParameterHistory is not valid" and the page
+    // shows its history-unsupported note (covered by the symmetric test below).
+    await gate(this, "R95", { on: ["ssm.history"] });
+    const name = `/e2e-ssm-histt-${stamp}/pw`;
+    await seedParameter(name, "secret-v1", "SecureString");
+    await client.send(
+      new PutParameterCommand({
+        Name: name,
+        Value: "secret-v2",
+        Type: "SecureString",
+        Overwrite: true,
+      }),
+    );
+
     await gotoParameterDetail(name);
     await waitDisplayed(T("ssm-history-table"));
     await waitDisplayed(T("ssm-history-row-2"));
@@ -190,5 +214,15 @@ describe("ssm", () => {
     );
     const versions = (hist.Parameters ?? []).map((p) => p.Version).sort();
     expect(versions).toEqual([1, 2]);
+  });
+
+  it("R95: shows the history-unsupported note where GetParameterHistory is unsupported", async function () {
+    // Symmetric unsupported branch (kumo): the version-history card shows its
+    // inline unsupported note instead of the table.
+    await gate(this, "R95", { off: ["ssm.history"] });
+    const name = `/e2e-ssm-histu-${stamp}/pw`;
+    await seedParameter(name, "secret-v1", "SecureString");
+    await gotoParameterDetail(name);
+    await waitDisplayed(T("ssm-history-unsupported"));
   });
 });

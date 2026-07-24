@@ -3,6 +3,9 @@ import {
   DeleteClusterCommand,
   DeregisterTaskDefinitionCommand,
   DescribeClustersCommand,
+  DescribeServicesCommand,
+  DescribeTaskDefinitionCommand,
+  DescribeTasksCommand,
   type ECSClient,
   ListTasksCommand,
   RegisterTaskDefinitionCommand,
@@ -21,7 +24,12 @@ import {
   waitDisplayed,
 } from "../helpers/app";
 import { E2E_ENDPOINT, makeEcsClient } from "../helpers/aws";
-import { expectCoveredIf, expectCoveredUnless, gate } from "../helpers/capabilities";
+import {
+  expectCovered,
+  expectCoveredIf,
+  expectCoveredUnless,
+  gate,
+} from "../helpers/capabilities";
 
 /**
  * ECS requirements (R75-R77), gated on the `ecs.clusters` capability. The ECS
@@ -84,7 +92,13 @@ describe("ecs", () => {
     await expectCoveredIf("R75", ["ecs.clusters"]);
     // The banner test only runs where the ECS control plane is unsupported.
     await expectCoveredUnless("R75-banner", ["ecs.clusters"]);
-    await expectCoveredIf("R76", ["ecs.clusters"]);
+    // R76 always has a runnable side: task definitions are either listable
+    // (supported test) or not (unsupported-banner test), so it is covered on
+    // every emulator.
+    expectCovered("R76");
+    // R77 (cluster detail) is only meaningful where the ECS control plane
+    // exists; on kumo the services/tasks unsupported-note tests cover it, on
+    // ministack/floci the real service/task flows do.
     await expectCoveredIf("R77", ["ecs.clusters"]);
     // Tear down every cluster this suite created, stopping any running task
     // first so no container leaks on ministack / floci.
@@ -164,7 +178,10 @@ describe("ecs", () => {
 
   describe("task definitions (R76)", () => {
     it("R76: registers a task definition, shows its detail, then deregisters it", async function () {
-      await gate(this, "R76", { on: ["ecs.clusters"] });
+      // Gate on the LIST capability, not just the control plane: kumo routes
+      // RegisterTaskDefinition but not ListTaskDefinitions, so the task-defs
+      // page shows its unsupported banner there (covered by the off-side test).
+      await gate(this, "R76", { on: ["ecs.taskDefinitions"] });
       const family = `ecs76-${stamp}`;
 
       await gotoTaskDefinitions();
@@ -175,6 +192,15 @@ describe("ecs", () => {
 
       const rowId = `ecs-taskdef-row-${family}:1`;
       await waitDisplayed(T(rowId), 30000);
+
+      // SDK back-check: the revision really registered with the busybox container.
+      const described = await ecs.send(
+        new DescribeTaskDefinitionCommand({ taskDefinition: `${family}:1` }),
+      );
+      expect(described.taskDefinition?.family).toBe(family);
+      expect(
+        (described.taskDefinition?.containerDefinitions ?? []).some((c) => c.name === "app"),
+      ).toBe(true);
 
       // Open the revision detail and confirm the busybox container is shown.
       await clickT(rowId);
@@ -194,8 +220,11 @@ describe("ecs", () => {
         .catch(() => {});
     });
 
-    it("R76: shows the ecs-unsupported banner on an unsupported emulator", async function () {
-      await gate(this, "R76", { off: ["ecs.clusters"] });
+    it("R76: shows the ecs-unsupported banner when task definitions are unlistable", async function () {
+      // Symmetric branch: localstack:3 (no ECS control plane) AND kumo
+      // (control-plane-partial: no ListTaskDefinitions) both take over the page
+      // with the shared banner and hide the register action.
+      await gate(this, "R76", { off: ["ecs.taskDefinitions"] });
       await gotoTaskDefinitions();
       await waitDisplayed(T("ecs-unsupported"));
       await expect($(T("ecs-taskdef-register"))).not.toBeExisting();
@@ -205,8 +234,10 @@ describe("ecs", () => {
   // --- R77: cluster detail (services + tasks) --------------------------------
 
   describe("cluster detail (R77)", () => {
-    it("R77: creates a service with a desired count and edits it", async function () {
-      await gate(this, "R77", { on: ["ecs.clusters"] });
+    it("R77: creates a service, edits its desired count, then deletes it", async function () {
+      // Gate on ListServices: kumo routes CreateService but not ListServices, so
+      // the created service never appears (covered by the services-note test).
+      await gate(this, "R77", { on: ["ecs.clusters", "ecs.services"] });
       const cluster = `ecs77s-${stamp}`;
       const family = `ecs77sf-${stamp}`;
       const service = `svc-${stamp}`;
@@ -219,11 +250,25 @@ describe("ecs", () => {
       await setValueT("csvc-desired", "0");
       await clickT("csvc-save");
 
-      // The service row appears; then bump the desired count via its edit modal.
+      // The service row appears; then bump the desired count to a DIFFERENT
+      // value via its edit modal and confirm the change actually applied.
       await waitDisplayed(T(`ecs-service-edit-${service}`), 30000);
       await clickT(`ecs-service-edit-${service}`);
-      await setValueT("ecs-service-desired", "0");
+      await setValueT("ecs-service-desired", "1");
       await clickT("ecs-service-desired-save");
+      await browser.waitUntil(
+        async () => {
+          const out = await ecs.send(
+            new DescribeServicesCommand({ cluster, services: [service] }),
+          );
+          return out.services?.[0]?.desiredCount === 1;
+        },
+        {
+          timeout: 30000,
+          interval: 1000,
+          timeoutMsg: `service ${service} desiredCount was not updated to 1`,
+        },
+      );
 
       // Delete the service (name-confirmation modal).
       await clickT(`ecs-service-delete-${service}`);
@@ -236,7 +281,10 @@ describe("ecs", () => {
     });
 
     it("R77: runs a task and stops it", async function () {
-      await gate(this, "R77", { on: ["ecs.clusters"] });
+      // Functional gate: RunTask must materialize a task ListTasks returns.
+      // kumo (no ListTasks) and any control-plane-only emulator are excluded and
+      // covered by the tasks-note test instead.
+      await gate(this, "R77", { on: ["ecs.runTask"] });
       const cluster = `ecs77t-${stamp}`;
       const family = `ecs77tf-${stamp}`;
       await seedClusterWithTaskDef(cluster, family);
@@ -259,7 +307,25 @@ describe("ecs", () => {
 
       const testid = await $(`[data-testid^="ecs-task-row-"]`).getAttribute("data-testid");
       const id = (testid ?? "").replace("ecs-task-row-", "");
+      const arn = (await ecs.send(new ListTasksCommand({ cluster })).catch(() => undefined))
+        ?.taskArns?.[0];
+      // Stop the task through the UI, then SDK-verify the UI action actually
+      // moved it to a STOPPED desired-status (before any cleanup masks it).
       await clickT(`ecs-task-stop-${id}`);
+      if (arn) {
+        await browser.waitUntil(
+          async () => {
+            const out = await ecs.send(new DescribeTasksCommand({ cluster, tasks: [arn] }));
+            const t = out.tasks?.[0];
+            return t?.desiredStatus === "STOPPED" || t?.lastStatus === "STOPPED";
+          },
+          {
+            timeout: 30000,
+            interval: 1000,
+            timeoutMsg: "UI stop did not move the task to STOPPED",
+          },
+        );
+      }
 
       // Stop every remaining task via the SDK so no container leaks.
       const { taskArns } = await ecs.send(new ListTasksCommand({ cluster }));
@@ -268,20 +334,31 @@ describe("ecs", () => {
       }
     });
 
-    it("R77: shows the services-unsupported note when ListServices is unsupported", async function () {
-      // Middle case: the control plane exists but this emulator does not
-      // implement ListServices for the cluster detail — the tab shows its
-      // inline unsupported note rather than the whole-page banner.
-      await gate(this, "R77", { on: ["ecs.clusters"] });
-      // This assertion is only meaningful where services actually render; it is
-      // covered by the create-service test above, so here we simply verify the
-      // detail page renders its tabs on a control-plane-capable emulator.
-      const cluster = `ecs77u-${stamp}`;
-      const family = `ecs77uf-${stamp}`;
+    it("R77: shows the services-unsupported note where ListServices is unsupported", async function () {
+      // Symmetric middle case (kumo): the control plane exists but ListServices
+      // is unroutable, so the services tab shows its inline unsupported note and
+      // hides the create action rather than the whole-page banner.
+      await gate(this, "R77", { on: ["ecs.clusters"], off: ["ecs.services"] });
+      const cluster = `ecs77us-${stamp}`;
+      const family = `ecs77usf-${stamp}`;
       await seedClusterWithTaskDef(cluster, family);
       await gotoClusterDetail(cluster);
-      await waitDisplayed(T("ecs-tab-services"));
-      await waitDisplayed(T("ecs-tab-tasks"));
+      await clickT("ecs-tab-services");
+      await waitDisplayed(T("ecs-services-unsupported"));
+      await expect($(T("ecs-service-create"))).not.toBeExisting();
+    });
+
+    it("R77: shows the tasks-unsupported note where ListTasks is unsupported", async function () {
+      // Symmetric middle case (kumo): ListTasks is unroutable, so the tasks tab
+      // shows its inline unsupported note and hides the run action.
+      await gate(this, "R77", { on: ["ecs.clusters"], off: ["ecs.tasks"] });
+      const cluster = `ecs77ut-${stamp}`;
+      const family = `ecs77utf-${stamp}`;
+      await seedClusterWithTaskDef(cluster, family);
+      await gotoClusterDetail(cluster);
+      await clickT("ecs-tab-tasks");
+      await waitDisplayed(T("ecs-tasks-unsupported"));
+      await expect($(T("ecs-task-run"))).not.toBeExisting();
     });
   });
 });

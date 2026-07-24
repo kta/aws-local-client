@@ -52,7 +52,19 @@ import {
   DescribeStacksCommand,
   UpdateStackCommand,
 } from "@aws-sdk/client-cloudformation";
-import { ListClustersCommand } from "@aws-sdk/client-ecs";
+import {
+  CreateClusterCommand,
+  DeleteClusterCommand,
+  ListClustersCommand,
+  ListServicesCommand,
+  ListTaskDefinitionsCommand,
+  ListTasksCommand,
+  RegisterTaskDefinitionCommand,
+  RunTaskCommand,
+  StopTaskCommand,
+} from "@aws-sdk/client-ecs";
+import { DisableRuleCommand } from "@aws-sdk/client-eventbridge";
+import { GetParameterHistoryCommand } from "@aws-sdk/client-ssm";
 import { UpdateStateMachineCommand } from "@aws-sdk/client-sfn";
 import {
   CreateDomainCommand,
@@ -79,6 +91,8 @@ import {
   makeCfnClient,
   makeEcsClient,
   makeEcrClient,
+  makeEventBridgeClient,
+  makeSsmClient,
   makeOpenSearchClient,
   makeAthenaClient,
   makeKafkaClient,
@@ -143,6 +157,12 @@ export type CapabilityId =
   | "cognito.adminUserState"
   | "secretsmanager.tags"
   | "ecs.clusters"
+  | "ecs.taskDefinitions"
+  | "ecs.services"
+  | "ecs.tasks"
+  | "ecs.runTask"
+  | "eventbridge.ruleState"
+  | "ssm.history"
   | "ecr.repositories"
   | "ecr.create"
   | "cloudwatch.metrics"
@@ -444,6 +464,135 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return true;
     } catch (e) {
       return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // ListTaskDefinitions: ministack/floci implement the full ECS control plane;
+  // kumo is control-plane-PARTIAL — it routes ListClusters/RegisterTaskDefinition
+  // but answers ListTaskDefinitions with UnknownOperationException ("is not
+  // valid"), so the task-definitions page cannot list and shows its unsupported
+  // banner. A clean list (or a non-unsupported service error) proves support.
+  "ecs.taskDefinitions": async () => {
+    try {
+      await makeEcsClient().send(new ListTaskDefinitionsCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // ListServices: same kumo control-plane-partial story (kumo answers
+  // UnknownOperationException). A ListServices against a deliberately missing
+  // cluster answers ClusterNotFound where implemented (proving routing) and an
+  // unsupported-shaped error where not.
+  "ecs.services": async () => {
+    try {
+      await makeEcsClient().send(
+        new ListServicesCommand({ cluster: "nlsd-cap-probe-missing" }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // ListTasks: kumo answers UnknownOperationException; ministack/floci implement
+  // it (ClusterNotFound for a missing cluster proves routing). Drives whether the
+  // cluster-detail tasks tab can list tasks at all.
+  "ecs.tasks": async () => {
+    try {
+      await makeEcsClient().send(new ListTasksCommand({ cluster: "nlsd-cap-probe-missing" }));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // Functional round-trip: RunTask must actually materialize a task that
+  // ListTasks then returns. This separates a control-plane that only ACKS
+  // RunTask (or cannot list tasks — kumo) from one that really runs a task
+  // (ministack/floci with Docker). A no-materialization / unsupported result
+  // counts as not-run-capable; transport errors re-throw.
+  "ecs.runTask": async () => {
+    const ecs = makeEcsClient();
+    const cluster = `nlsd-cap-ecs-${PROBE_STAMP}`;
+    const family = `nlsd-cap-ecsf-${PROBE_STAMP}`;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    try {
+      await ecs.send(new CreateClusterCommand({ clusterName: cluster }));
+      await ecs.send(
+        new RegisterTaskDefinitionCommand({
+          family,
+          containerDefinitions: [
+            {
+              name: "app",
+              image: "public.ecr.aws/docker/library/busybox:stable",
+              memory: 128,
+              essential: true,
+              command: ["sleep", "60"],
+            },
+          ],
+        }),
+      );
+      await ecs.send(new RunTaskCommand({ cluster, taskDefinition: family, count: 1 }));
+      for (let i = 0; i < 10; i++) {
+        const { taskArns } = await ecs.send(new ListTasksCommand({ cluster }));
+        if ((taskArns?.length ?? 0) > 0) return true;
+        await sleep(1000);
+      }
+      return false;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    } finally {
+      try {
+        const { taskArns } = await ecs.send(new ListTasksCommand({ cluster }));
+        for (const taskArn of taskArns ?? []) {
+          await ecs.send(new StopTaskCommand({ cluster, task: taskArn })).catch(() => {});
+        }
+      } catch {
+        /* ignore */
+      }
+      await ecs.send(new DeleteClusterCommand({ cluster })).catch(() => {});
+    }
+  },
+
+  // EventBridge DisableRule/EnableRule: ministack/floci/localstack apply the
+  // state change; kumo answers InvalidAction ("The action DisableRule is not
+  // valid for this endpoint") — it does not model rule enable/disable. A
+  // DisableRule against a deliberately missing rule answers ResourceNotFound
+  // where implemented (proving routing) and an unsupported-shaped error where not.
+  "eventbridge.ruleState": async () => {
+    try {
+      await makeEventBridgeClient().send(
+        new DisableRuleCommand({ Name: "nlsd-cap-probe-missing" }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // GetParameterHistory: ministack/floci/localstack implement it; kumo answers
+  // ValidationException "The action GetParameterHistory is not valid" — it does
+  // not model version history. The error NAME is ValidationException (not an
+  // Unknown*/Invalid* shape), so the generic serviceErrorMeansImplemented would
+  // misread the "is not valid" body as a real validation error; classify on the
+  // body text directly. A ParameterNotFound for a missing name proves routing.
+  "ssm.history": async () => {
+    try {
+      await makeSsmClient().send(
+        new GetParameterHistoryCommand({ Name: "/nlsd-cap-probe-missing" }),
+      );
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const err = e as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
+      const text = `${err.name ?? ""} ${err.message ?? ""}`;
+      if (/is not valid|not ?implemented|not supported|unknown ?operation/i.test(text)) {
+        return false;
+      }
+      if (err.$metadata?.httpStatusCode !== undefined) return true;
+      throw e;
     }
   },
 
