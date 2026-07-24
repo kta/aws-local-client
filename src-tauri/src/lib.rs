@@ -118,6 +118,10 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::opensearch::opensearch_list_domains,
+            commands::opensearch::opensearch_create_domain,
+            commands::opensearch::opensearch_delete_domain,
+            commands::opensearch::opensearch_get_domain,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
