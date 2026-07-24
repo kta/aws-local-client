@@ -2,12 +2,10 @@ import { configure } from "@testing-library/dom";
 import { beforeEach } from "vitest";
 
 // With 16 services' test files now running in parallel, Testing Library's
-// default 1000ms async utility timeout is occasionally exceeded when a vitest
-// fork is CPU-starved (findBy*/waitFor racing a synchronous modal mount),
-// producing spurious failures. Raise it generously so async queries tolerate
-// contention without weakening assertions (components render synchronously;
-// this only absorbs scheduler starvation).
-configure({ asyncUtilTimeout: 15000 });
+// default 1000ms async utility timeout can be tight for a CPU-starved fork;
+// raise it modestly so genuine async queries tolerate contention without
+// weakening assertions.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom in this environment does not expose a working localStorage, so provide a
 // minimal in-memory polyfill on both globalThis and window for tests.

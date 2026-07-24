@@ -102,6 +102,9 @@ describe("ApiDetailPage (R57/R58)", () => {
 
   it("creates a MOCK method on a resource", async () => {
     renderPage();
+    // Wait for resources to load: the method-create button is disabled while
+    // the list is empty, so clicking before the fetch resolves is a no-op.
+    await screen.findByText("/demo");
     fireEvent.click(await screen.findByTestId("method-create"));
     // resource select defaults to first (root); pick /demo
     fireEvent.change(await screen.findByTestId("method-resource"), { target: { value: "res1" } });
