@@ -766,6 +766,16 @@ export async function gotoSecrets(): Promise<void> {
 export async function gotoSecretDetail(name: string): Promise<void> {
   await navigateHash(`#/secrets-manager/secrets/${encodeURIComponent(name)}`);
   await waitDisplayed(T("secret-value-toggle"));
+// --- ElastiCache navigation (R68-R70) ---------------------------------------
+
+export async function gotoElastiCacheDashboard(): Promise<void> {
+  await navigateHash("#/elasticache");
+  await waitDisplayed(T("elasticache-dashboard-heading"));
+}
+
+export async function gotoCaches(): Promise<void> {
+  await navigateHash("#/elasticache/caches");
+  await waitDisplayed(T("caches-heading"));
 }
 
 export { $, $$, browser, expect };

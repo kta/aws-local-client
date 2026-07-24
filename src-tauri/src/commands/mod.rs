@@ -3,6 +3,7 @@ pub mod cognito;
 pub mod dynamodb;
 pub mod lambda;
 pub mod eventbridge;
+pub mod elasticache;
 pub mod rds;
 pub mod s3;
 pub mod secretsmanager;

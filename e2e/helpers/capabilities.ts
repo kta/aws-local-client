@@ -32,6 +32,7 @@ import {
   DescribeSecretCommand,
   TagResourceCommand as SecretsTagResourceCommand,
 } from "@aws-sdk/client-secrets-manager";
+import { DescribeReplicationGroupsCommand } from "@aws-sdk/client-elasticache";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import {
   CreateApiKeyCommand,
@@ -44,6 +45,7 @@ import {
   makeLambdaClient,
   makeApiGatewayClient,
   makeCognitoClient,
+  makeElastiCacheClient,
   makeS3Client,
   makeSecretsManagerClient,
   makeSnsClient,
@@ -84,6 +86,7 @@ export type CapabilityId =
   | "rds.snapshots.describe"
   | "rds.snapshots.restore"
   | "rds.parameterGroups.describe"
+  | "elasticache.describe"
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
@@ -231,6 +234,19 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
     }),
 
   "rds.parameterGroups.describe": () => rdsDescribeProbe("DescribeDBParameterGroups"),
+
+  // ElastiCache is Pro-only on localstack:3 (rejects describe with an
+  // unsupported/pro-feature error); ministack/floci/kumo implement it. A
+  // successful DescribeReplicationGroups (or any non-unsupported service error)
+  // proves the API is routed.
+  "elasticache.describe": async () => {
+    try {
+      await makeElastiCacheClient().send(new DescribeReplicationGroupsCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
 
   // A missing queue is enough: QueueDoesNotExist proves the action is routed.
   "sqs.dlqSources": async () => {

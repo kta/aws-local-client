@@ -176,6 +176,10 @@ pub fn run() {
             commands::secretsmanager::secrets_delete,
             commands::secretsmanager::secrets_tag,
             commands::secretsmanager::secrets_untag,
+            commands::elasticache::elasticache_list_caches,
+            commands::elasticache::elasticache_create_cache,
+            commands::elasticache::elasticache_delete_cache,
+            commands::elasticache::elasticache_get_cache,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
