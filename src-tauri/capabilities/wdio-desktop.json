@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "wdio-desktop",
+  "description": "WebdriverIO E2E plugin permissions — desktop only (the wdio plugins do not compile for mobile; iOS E2E drives the webview via Appium/XCUITest instead)",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "wdio:default",
+    "wdio-webdriver:default"
+  ]
+}

@@ -10,6 +10,8 @@ Phase 2(SQS / SNS / S3 / RDS)+ サービスコンソール拡充(R36〜R50)+ Top
 テストは実バイナリ(`npm run e2e:build`)を WebdriverIO の Tauri 埋め込みドライバで起動し、
 `E2E_ENDPOINT`(既定 `http://localhost:4566`)のエミュレータに対して実行する。同一スイートを
 LocalStack / floci / ministack / kumo の 4 種に対して実行して緑を確認している。
+さらに **iOS でも同一スイートを実行**する(`npm run e2e:ios`、Appium/XCUITest の
+webview コンテキスト経由。CI の `e2e-ios` ジョブは ministack に対して実行)。
 
 エミュレータごとの API 対応差は **capability ゲート**(`e2e/helpers/capabilities.ts`)で吸収する:
 分岐するテストは自分が叩く操作の対応可否を実機プローブで宣言的に判定し(`gate()`)、

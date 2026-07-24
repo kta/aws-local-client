@@ -23,11 +23,6 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.5", features = [] }
 tauri-plugin-log = "2"
-# E2E (WebdriverIO) support. Registered only in debug builds (see lib.rs).
-# `tauri-plugin-wdio` exposes the WDIO command surface; `tauri-plugin-wdio-webdriver`
-# runs an embedded W3C WebDriver HTTP server so macOS works without an external driver.
-tauri-plugin-wdio = "1"
-tauri-plugin-wdio-webdriver = "1"
 aws-sdk-dynamodb = "1"
 aws-sdk-sqs = "1"
 aws-sdk-sns = "1"
@@ -64,6 +59,16 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
 # minimal; rustls-tls lets it also work against https endpoints.
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 quick-xml = { version = "0.37", features = ["serialize"] }
+
+# E2E (WebdriverIO) support. Registered only in debug builds (see lib.rs).
+# `tauri-plugin-wdio` exposes the WDIO command surface; `tauri-plugin-wdio-webdriver`
+# runs an embedded W3C WebDriver HTTP server so macOS works without an external driver.
+# Desktop-only: the published crates declare `ios_path("ios")` but ship no iOS
+# sources (upstream repo lacks them too), so mobile builds cannot compile them.
+# iOS E2E drives the WKWebView through Appium/XCUITest instead.
+[target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
+tauri-plugin-wdio = "1"
+tauri-plugin-wdio-webdriver = "1"
 
 [dev-dependencies]
 tempfile = "3"

@@ -55,6 +55,14 @@ E2E_ENDPOINT=http://localhost:4566 npm run e2e
 scripts/emulator.sh stop ministack     # tear down when done
 ```
 
+iOS E2E (same suite via Appium/XCUITest against the app in the iOS simulator; needs
+Xcode + rustup target `aarch64-apple-ios-sim`):
+
+```bash
+npm run e2e:ios:build
+E2E_ENDPOINT=http://localhost:4566 npm run e2e:ios
+```
+
 ## Architecture
 
 - `src/api/client.ts` — typed `invoke` wrappers mirroring Rust commands 1:1 (camelCase names).

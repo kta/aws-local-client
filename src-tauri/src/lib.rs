@@ -20,7 +20,9 @@ pub fn run() {
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
 
-    #[cfg(debug_assertions)]
+    // The wdio plugins are desktop-only (their published crates cannot compile
+    // for mobile); iOS E2E drives the webview through Appium/XCUITest instead.
+    #[cfg(all(debug_assertions, not(any(target_os = "ios", target_os = "android"))))]
     if under_wdio {
         // tauri-plugin-wdio-webdriver starts an embedded W3C WebDriver server so
         // macOS can be driven without an external tauri-driver / CrabNebula.
