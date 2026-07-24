@@ -789,6 +789,26 @@ export async function gotoStacks(): Promise<void> {
 export async function gotoStackDetail(name: string): Promise<void> {
   await navigateHash(`#/cloudformation/stacks/${encodeURIComponent(name)}`);
   await waitDisplayed(T("stack-detail-heading"));
+// --- ECS navigation (R75-R77) ------------------------------------------------
+
+export async function gotoEcsDashboard(): Promise<void> {
+  await navigateHash("#/ecs");
+  await waitDisplayed(T("ecs-dashboard-heading"));
+}
+
+export async function gotoClusters(): Promise<void> {
+  await navigateHash("#/ecs/clusters");
+  await waitDisplayed(T("ecs-clusters-heading"));
+}
+
+export async function gotoClusterDetail(name: string): Promise<void> {
+  await navigateHash(`#/ecs/clusters/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("ecs-cluster-detail-heading"));
+}
+
+export async function gotoTaskDefinitions(): Promise<void> {
+  await navigateHash("#/ecs/task-definitions");
+  await waitDisplayed(T("ecs-taskdefs-heading"));
 }
 
 export { $, $$, browser, expect };

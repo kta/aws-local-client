@@ -7,6 +7,7 @@ import { ddb } from "./dynamodb";
 import { lambda } from "./lambda";
 import { eventbridge } from "./eventbridge";
 import { elasticache } from "./elasticache";
+import { ecs } from "./ecs";
 import { rds } from "./rds";
 import { s3 } from "./s3";
 import { secretsManager } from "./secretsmanager";
@@ -40,4 +41,5 @@ export const api = {
   secretsManager,
   elasticache,
   cloudformation,
+  ecs,
 };

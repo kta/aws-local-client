@@ -38,6 +38,7 @@ import { DescribeReplicationGroupsCommand } from "@aws-sdk/client-elasticache";
   DeleteStackCommand,
   DescribeStacksCommand,
 } from "@aws-sdk/client-cloudformation";
+import { ListClustersCommand } from "@aws-sdk/client-ecs";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import {
   CreateApiKeyCommand,
@@ -52,6 +53,7 @@ import {
   makeCognitoClient,
   makeElastiCacheClient,
   makeCfnClient,
+  makeEcsClient,
   makeS3Client,
   makeSecretsManagerClient,
   makeSnsClient,
@@ -106,6 +108,7 @@ export type CapabilityId =
   | "cognito.groups"
   | "cognito.adminUserState";
   | "secretsmanager.tags";
+  | "ecs.clusters";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -290,6 +293,15 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return (topics.Topics ?? []).some((t) => t.TopicArn?.includes(topic));
     } finally {
       await cfn.send(new DeleteStackCommand({ StackName: stack })).catch(() => {});
+  // ECS control plane. localstack:3 is ECS-Pro-only and rejects ListClusters
+  // as unsupported; ministack/floci implement it. A clean ListClusters (or any
+  // non-unsupported service error) proves the control plane is available.
+  "ecs.clusters": async () => {
+    try {
+      await makeEcsClient().send(new ListClustersCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
     }
   },
 

@@ -11,6 +11,7 @@ import { eventbridgeService } from "../features/eventbridge/service";
 import { secretsManagerService } from "../features/secrets-manager/service";
 import { elasticacheService } from "../features/elasticache/service";
 import { cloudformationService } from "../features/cloudformation/service";
+import { ecsService } from "../features/ecs/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -34,7 +35,6 @@ const comingSoon = (id: string, name: string): ServiceDefinition => ({
 // console-level service (IoT Data -> IoT Core, SES v1/v2 -> SES, ...).
 const FLOCI_COMING_SOON: [string, string][] = [
   ["ec2", "EC2"],
-  ["ecs", "ECS"],
   ["ecr", "ECR"],
   ["eks", "EKS"],
   ["step-functions", "Step Functions"],
@@ -111,6 +111,7 @@ export const SERVICES: ServiceDefinition[] = [
   secretsManagerService,
   elasticacheService,
   cloudformationService,
+  ecsService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 
