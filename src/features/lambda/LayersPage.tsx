@@ -36,12 +36,16 @@ function baseName(path: string): string {
 }
 
 /**
- * The layers API is unavailable on some emulators (measured: kumo answers
- * ListLayers with a NoSuchBucket / 404 body rather than a classic unsupported
- * signature), so detection covers both shapes.
+ * The layers API is unavailable on some emulators, in several shapes (measured):
+ * kumo answers ListLayers with a NoSuchBucket / 404 body; localstack:3 raises a
+ * 500 "list index out of range" internal error rather than a classic
+ * unsupported signature. Detection covers all of them.
  */
 function isLayersUnsupported(err: AppError): boolean {
-  return isUnsupportedOperation(err) || /no ?such ?bucket|404/i.test(err.message);
+  return (
+    isUnsupportedOperation(err) ||
+    /no ?such ?bucket|404|list index out of range/i.test(err.message)
+  );
 }
 
 export function LayersPage() {

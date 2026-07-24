@@ -50,6 +50,7 @@ import {
   CreateStackCommand,
   DeleteStackCommand,
   DescribeStacksCommand,
+  UpdateStackCommand,
 } from "@aws-sdk/client-cloudformation";
 import { ListClustersCommand } from "@aws-sdk/client-ecs";
 import { UpdateStateMachineCommand } from "@aws-sdk/client-sfn";
@@ -125,6 +126,7 @@ export type CapabilityId =
   | "rds.parameterGroups.describe"
   | "elasticache.describe"
   | "cloudformation.resourceCreation"
+  | "cloudformation.resourceReplacement"
   | "sqs.dlqSources"
   | "sfn.updateStateMachine"
   | "sns.topicTags"
@@ -329,6 +331,51 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
     }
   },
 
+  // Update-replacement provisioning: localstack:3 reaches UPDATE_COMPLETE but
+  // does NOT re-provision a resource that a template change replaces (an SNS
+  // TopicName swap forces replacement), while ministack/floci do. Probe the
+  // full create -> update-replace cycle and confirm the new topic really exists.
+  "cloudformation.resourceReplacement": async () => {
+    const cfn = makeCfnClient();
+    const sns = makeSnsClient();
+    const stack = `nlsd-cap-cfnupd-${PROBE_STAMP}`;
+    const topicA = `nlsd-cap-cfnupd-a-${PROBE_STAMP}`;
+    const topicB = `nlsd-cap-cfnupd-b-${PROBE_STAMP}`;
+    const tpl = (t: string) =>
+      JSON.stringify({
+        Resources: { ProbeTopic: { Type: "AWS::SNS::Topic", Properties: { TopicName: t } } },
+      });
+    const waitFor = async (want: string): Promise<boolean> => {
+      for (let i = 0; i < 30; i++) {
+        try {
+          const out = await cfn.send(new DescribeStacksCommand({ StackName: stack }));
+          const st = out.Stacks?.[0]?.StackStatus;
+          if (st === want) return true;
+          if (st?.endsWith("_FAILED")) return false;
+        } catch {
+          /* not ready yet */
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      return false;
+    };
+    try {
+      await cfn.send(new CreateStackCommand({ StackName: stack, TemplateBody: tpl(topicA) }));
+    } catch (e) {
+      serviceErrorMeansImplemented(e); // re-throws transport errors
+      return false;
+    }
+    try {
+      if (!(await waitFor("CREATE_COMPLETE"))) return false;
+      await cfn.send(new UpdateStackCommand({ StackName: stack, TemplateBody: tpl(topicB) }));
+      if (!(await waitFor("UPDATE_COMPLETE"))) return false;
+      const topics = await sns.send(new ListTopicsCommand({}));
+      return (topics.Topics ?? []).some((t) => t.TopicArn?.endsWith(`:${topicB}`));
+    } finally {
+      await cfn.send(new DeleteStackCommand({ StackName: stack })).catch(() => {});
+    }
+  },
+
   // ECS control plane. localstack:3 is ECS-Pro-only and rejects ListClusters
   // as unsupported; ministack/floci implement it. A clean ListClusters (or any
   // non-unsupported service error) proves the control plane is available.
@@ -487,6 +534,10 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       const text = `${err.name ?? ""} ${err.message ?? ""}`;
       if (/no ?such ?bucket|not ?found/i.test(text)) return false;
       if (err.$metadata?.httpStatusCode === 404) return false;
+      // localstack:3's layers API is broken: ListLayers raises a 500
+      // "list index out of range" internal error. Treat the broken feature as
+      // unsupported (the app shows the same unsupported banner).
+      if (/list index out of range/i.test(text)) return false;
       throw e;
     }
   },

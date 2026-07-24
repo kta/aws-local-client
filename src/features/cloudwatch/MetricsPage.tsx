@@ -73,8 +73,12 @@ export function MetricsPage() {
       return;
     }
     let cancelled = false;
-    const end = new Date();
-    const start = new Date(end.getTime() - 3 * 60 * 60 * 1000); // last 3 hours
+    // End a few minutes in the future so the newest datapoint — in the current
+    // partial period, or timestamped slightly ahead by emulator clock skew — is
+    // not excluded by a strict EndTime (localstack drops it; real data is always
+    // in the past, so the buffer is harmless).
+    const end = new Date(Date.now() + 5 * 60 * 1000);
+    const start = new Date(Date.now() - 3 * 60 * 60 * 1000); // last 3 hours
     setStatsLoading(true);
     setStatError(null);
     api.cloudwatch

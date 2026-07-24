@@ -78,6 +78,13 @@ pub async fn list_secrets(client: &Client) -> Result<Vec<SecretSummary>, AppErro
             .await
             .map_err(map_sdk_err)?;
         for s in out.secret_list() {
+            // A secret scheduled for deletion lingers in ListSecrets (with a
+            // deletion date) on AWS-accurate emulators like localstack; the
+            // console treats it as gone, matching the immediate drop other
+            // emulators do.
+            if s.deleted_date().is_some() {
+                continue;
+            }
             secrets.push(SecretSummary {
                 name: s.name().unwrap_or_default().to_string(),
                 arn: s.arn().unwrap_or_default().to_string(),

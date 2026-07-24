@@ -222,7 +222,7 @@ describe("cloudformation", () => {
   // --- R74: update then delete, both SDK-verified ------------------------------
 
   it("R74: UI updates the template then deletes the stack (resource verified)", async function () {
-    await gate(this, "R74", { on: ["cloudformation.resourceCreation"] });
+    await gate(this, "R74", { on: ["cloudformation.resourceReplacement"] });
     const name = `cfn74-${stamp}`;
     const topicA = `cfn74a-${stamp}`;
     const topicB = `cfn74b-${stamp}`;
@@ -242,12 +242,18 @@ describe("cloudformation", () => {
     await clickT("stack-delete");
     await setValueT("stack-delete-input", name);
     await clickT("stack-delete-confirm");
-    await gotoStacks();
-    await browser.waitUntil(async () => !(await $(T(`stack-row-${name}`)).isExisting()), {
-      timeout: 60000,
-      interval: 2000,
-      timeoutMsg: `stack ${name} was not removed from the list`,
-    });
+    await browser.waitUntil(
+      async () => {
+        await navigateHash("#/");
+        await gotoStacks();
+        return !(await $(T(`stack-row-${name}`)).isExisting());
+      },
+      {
+        timeout: 60000,
+        interval: 2000,
+        timeoutMsg: `stack ${name} was not removed from the list`,
+      },
+    );
     await browser.waitUntil(async () => !(await topicExists(topicB)), {
       timeout: 60000,
       interval: 2000,
@@ -256,7 +262,10 @@ describe("cloudformation", () => {
   });
 
   it("R74: update and delete stay functional where resources are not provisioned", async function () {
-    await gate(this, "R74", { off: ["cloudformation.resourceCreation"] });
+    // Also covers emulators that create resources but do not re-provision on an
+    // update-replacement (localstack:3): the update round-trips, but the swapped
+    // topic is not asserted.
+    await gate(this, "R74", { off: ["cloudformation.resourceReplacement"] });
     const name = `cfn74u-${stamp}`;
     await seedStack(name, `cfn74ua-${stamp}`);
     await waitStatus(name, "CREATE_COMPLETE");
@@ -273,11 +282,17 @@ describe("cloudformation", () => {
     await clickT("stack-delete");
     await setValueT("stack-delete-input", name);
     await clickT("stack-delete-confirm");
-    await gotoStacks();
-    await browser.waitUntil(async () => !(await $(T(`stack-row-${name}`)).isExisting()), {
-      timeout: 60000,
-      interval: 2000,
-      timeoutMsg: `stack ${name} was not removed from the list`,
-    });
+    await browser.waitUntil(
+      async () => {
+        await navigateHash("#/");
+        await gotoStacks();
+        return !(await $(T(`stack-row-${name}`)).isExisting());
+      },
+      {
+        timeout: 60000,
+        interval: 2000,
+        timeoutMsg: `stack ${name} was not removed from the list`,
+      },
+    );
   });
 });
