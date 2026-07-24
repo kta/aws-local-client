@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AppError, ConnectionProfile, DetectedEndpoint } from "./types";
 import { apigateway } from "./apigateway";
+import { cognito } from "./cognito";
 import { ddb } from "./dynamodb";
 import { lambda } from "./lambda";
 import { rds } from "./rds";
@@ -30,4 +31,5 @@ export const api = {
   rds,
   lambda,
   apigateway,
+  cognito,
 };

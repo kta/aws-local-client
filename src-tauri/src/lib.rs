@@ -139,6 +139,22 @@ pub fn run() {
             commands::apigateway::apigw_list_api_keys,
             commands::apigateway::apigw_create_api_key,
             commands::apigateway::apigw_delete_api_key,
+            commands::cognito::cognito_list_user_pools,
+            commands::cognito::cognito_create_user_pool,
+            commands::cognito::cognito_delete_user_pool,
+            commands::cognito::cognito_get_user_pool,
+            commands::cognito::cognito_list_users,
+            commands::cognito::cognito_admin_create_user,
+            commands::cognito::cognito_admin_set_user_password,
+            commands::cognito::cognito_admin_enable_user,
+            commands::cognito::cognito_admin_disable_user,
+            commands::cognito::cognito_admin_delete_user,
+            commands::cognito::cognito_list_user_pool_clients,
+            commands::cognito::cognito_create_user_pool_client,
+            commands::cognito::cognito_delete_user_pool_client,
+            commands::cognito::cognito_list_groups,
+            commands::cognito::cognito_create_group,
+            commands::cognito::cognito_delete_group,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

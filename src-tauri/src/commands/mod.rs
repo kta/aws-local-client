@@ -1,4 +1,5 @@
 pub mod apigateway;
+pub mod cognito;
 pub mod dynamodb;
 pub mod lambda;
 pub mod rds;

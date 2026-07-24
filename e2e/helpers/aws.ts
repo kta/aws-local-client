@@ -1,5 +1,6 @@
 import { LambdaClient } from "@aws-sdk/client-lambda";
 import { APIGatewayClient } from "@aws-sdk/client-api-gateway";
+import { CognitoIdentityProviderClient } from "@aws-sdk/client-cognito-identity-provider";
 import { RDSClient } from "@aws-sdk/client-rds";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SNSClient } from "@aws-sdk/client-sns";
@@ -43,6 +44,11 @@ export function makeApiGatewayClient(
   region = E2E_REGION,
 ): APIGatewayClient {
   return new APIGatewayClient({ endpoint, region, credentials });
+export function makeCognitoClient(
+  endpoint = E2E_ENDPOINT,
+  region = E2E_REGION,
+): CognitoIdentityProviderClient {
+  return new CognitoIdentityProviderClient({ endpoint, region, credentials });
 }
 
 /** True if an SDK error looks like "this emulator does not implement the op". */

@@ -23,6 +23,10 @@ import {
   InvokeCommand,
   ListLayersCommand,
 } from "@aws-sdk/client-lambda";
+  AdminSetUserPasswordCommand,
+  ListGroupsCommand,
+  ListUserPoolsCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import {
   CreateApiKeyCommand,
@@ -34,6 +38,7 @@ import {
   isUnsupportedError,
   makeLambdaClient,
   makeApiGatewayClient,
+  makeCognitoClient,
   makeS3Client,
   makeSnsClient,
   makeSqsClient,
@@ -81,6 +86,9 @@ export type CapabilityId =
   | "lambda.layers";
   | "apigateway.apiKeys"
   | "apigateway.apiKeyDelete";
+  | "cognito.userPools"
+  | "cognito.groups"
+  | "cognito.adminUserState";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -394,6 +402,48 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
         ?.httpStatusCode;
       if (status !== undefined) return false;
       throw e;
+  // localstack:3 CE answers every cognito-idp action with a "pro feature"
+  // error; floci/ministack/kumo implement user pools. A successful ListUserPools
+  // is enough.
+  "cognito.userPools": async () => {
+    try {
+      await makeCognitoClient().send(new ListUserPoolsCommand({ MaxResults: 1 }));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // Groups are implemented on floci/ministack but not kumo (InvalidAction). A
+  // ListGroups against a deliberately missing pool answers ResourceNotFound
+  // where implemented (proving routing) and InvalidAction where not.
+  "cognito.groups": async () => {
+    try {
+      await makeCognitoClient().send(
+        new ListGroupsCommand({ UserPoolId: "ap-northeast-1_nlsdprobe" }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
+
+  // AdminSetUserPassword / AdminEnableUser / AdminDisableUser are implemented on
+  // floci/ministack but not kumo (InvalidAction). Probe the password op against
+  // a missing pool: NotFound proves it is routed, InvalidAction proves it is not.
+  "cognito.adminUserState": async () => {
+    try {
+      await makeCognitoClient().send(
+        new AdminSetUserPasswordCommand({
+          UserPoolId: "ap-northeast-1_nlsdprobe",
+          Username: "nlsd-cap-probe-missing",
+          Password: "Probe1234!",
+          Permanent: true,
+        }),
+      );
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
     }
   },
 
