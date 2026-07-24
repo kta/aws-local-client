@@ -4,6 +4,7 @@ import { sqsService } from "../features/sqs/service";
 import { snsService } from "../features/sns/service";
 import { s3Service } from "../features/s3/service";
 import { rdsService } from "../features/rds/service";
+import { ecsService } from "../features/ecs/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -28,7 +29,6 @@ const comingSoon = (id: string, name: string): ServiceDefinition => ({
 const FLOCI_COMING_SOON: [string, string][] = [
   ["lambda", "Lambda"],
   ["ec2", "EC2"],
-  ["ecs", "ECS"],
   ["ecr", "ECR"],
   ["eks", "EKS"],
   ["step-functions", "Step Functions"],
@@ -100,6 +100,7 @@ export const SERVICES: ServiceDefinition[] = [
   snsService,
   s3Service,
   rdsService,
+  ecsService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 

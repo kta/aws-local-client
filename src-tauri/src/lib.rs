@@ -118,6 +118,20 @@ pub fn run() {
             commands::rds::rds_create_parameter_group,
             commands::rds::rds_delete_parameter_group,
             commands::rds::rds_list_parameters,
+            commands::ecs::ecs_list_clusters,
+            commands::ecs::ecs_create_cluster,
+            commands::ecs::ecs_delete_cluster,
+            commands::ecs::ecs_list_task_definitions,
+            commands::ecs::ecs_register_task_definition,
+            commands::ecs::ecs_describe_task_definition,
+            commands::ecs::ecs_deregister_task_definition,
+            commands::ecs::ecs_list_services,
+            commands::ecs::ecs_create_service,
+            commands::ecs::ecs_update_service,
+            commands::ecs::ecs_delete_service,
+            commands::ecs::ecs_list_tasks,
+            commands::ecs::ecs_run_task,
+            commands::ecs::ecs_stop_task,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

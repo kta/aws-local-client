@@ -16,11 +16,13 @@ import {
   ListTagsForResourceCommand,
   TagResourceCommand,
 } from "@aws-sdk/client-sns";
+import { ListClustersCommand } from "@aws-sdk/client-ecs";
 import { ListDeadLetterSourceQueuesCommand } from "@aws-sdk/client-sqs";
 import { makeClient } from "./emulator";
 import {
   E2E_ENDPOINT,
   isUnsupportedError,
+  makeEcsClient,
   makeS3Client,
   makeSnsClient,
   makeSqsClient,
@@ -62,7 +64,8 @@ export type CapabilityId =
   | "sqs.dlqSources"
   | "sns.topicTags"
   | "s3.bucketTagging"
-  | "s3.folderKeys";
+  | "s3.folderKeys"
+  | "ecs.clusters";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators. */
 function isUnsupportedText(text: string): boolean {
@@ -198,6 +201,18 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
     }),
 
   "rds.parameterGroups.describe": () => rdsDescribeProbe("DescribeDBParameterGroups"),
+
+  // ECS control plane. localstack:3 is ECS-Pro-only and rejects ListClusters
+  // as unsupported; ministack/floci implement it. A clean ListClusters (or any
+  // non-unsupported service error) proves the control plane is available.
+  "ecs.clusters": async () => {
+    try {
+      await makeEcsClient().send(new ListClustersCommand({}));
+      return true;
+    } catch (e) {
+      return serviceErrorMeansImplemented(e);
+    }
+  },
 
   // A missing queue is enough: QueueDoesNotExist proves the action is routed.
   "sqs.dlqSources": async () => {
