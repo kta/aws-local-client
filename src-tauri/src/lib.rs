@@ -240,6 +240,11 @@ pub fn run() {
             commands::athena::athena_list_named_queries,
             commands::athena::athena_create_named_query,
             commands::athena::athena_delete_named_query,
+            commands::msk::msk_list_clusters,
+            commands::msk::msk_create_cluster,
+            commands::msk::msk_delete_cluster,
+            commands::msk::msk_describe_cluster,
+            commands::msk::msk_get_bootstrap_brokers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

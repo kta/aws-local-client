@@ -59,6 +59,7 @@ import {
   CreateApiKeyCommand,
   DeleteApiKeyCommand,
 } from "@aws-sdk/client-api-gateway";
+import { ListClustersCommand } from "@aws-sdk/client-kafka";
 import { makeClient } from "./emulator";
 import {
   awsQuery,
@@ -74,6 +75,7 @@ import {
   makeEcrClient,
   makeOpenSearchClient,
   makeAthenaClient,
+  makeKafkaClient,
   makeS3Client,
   makeSecretsManagerClient,
   makeSfnClient,
@@ -140,6 +142,7 @@ export type CapabilityId =
   | "athena.query"
   | "athena.workgroups"
   | "athena.namedQueries";
+  | "kafka.clusters";
 
 /** Unsupported-operation shapes seen in raw response bodies across emulators.
  *  `unknown service` covers kumo, which does not route the CloudWatch
@@ -710,6 +713,21 @@ const PROBES: Record<CapabilityId, () => Promise<boolean>> = {
       return true;
     } catch (e) {
       return serviceErrorMeansImplemented(e);
+  // MSK (Kafka). Supported on floci (Redpanda) and ministack; a Pro feature on
+  // localstack:3 (answers "pro feature") and absent on kumo (routes MSK actions
+  // to a 404 "page not found"). A successful ListClusters proves support.
+  "kafka.clusters": async () => {
+    try {
+      await makeKafkaClient().send(new ListClustersCommand({}));
+      return true;
+    } catch (e) {
+      if (isUnsupportedError(e)) return false;
+      const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata
+        ?.httpStatusCode;
+      // kumo answers 404 for MSK actions it does not route.
+      if (status === 404) return false;
+      if (status !== undefined) return true;
+      throw e;
     }
   },
 };

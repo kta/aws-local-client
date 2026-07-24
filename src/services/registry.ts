@@ -17,6 +17,7 @@ import { cloudwatchService } from "../features/cloudwatch/service";
 import { stepFunctionsService } from "../features/step-functions/service";
 import { opensearchService } from "../features/opensearch/service";
 import { athenaService } from "../features/athena/service";
+import { mskService } from "../features/msk/service";
 import { SERVICE_ICONS } from "./icons";
 
 // Placeholder entries for services that are not yet implemented. They render as
@@ -68,7 +69,6 @@ const FLOCI_COMING_SOON: [string, string][] = [
   ["lightsail", "Lightsail"],
   ["glue", "Glue"],
   ["emr", "EMR"],
-  ["msk", "MSK"],
   ["mq", "Amazon MQ"],
   ["memorydb", "MemoryDB"],
   ["neptune", "Neptune"],
@@ -123,6 +123,7 @@ export const SERVICES: ServiceDefinition[] = [
   stepFunctionsService,
   opensearchService,
   athenaService,
+  mskService,
   ...FLOCI_COMING_SOON.map(([id, name]) => comingSoon(id, name)),
 ].map(withOfficialIcon);
 

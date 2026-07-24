@@ -878,6 +878,21 @@ export async function gotoAthenaSavedQueries(): Promise<void> {
 export async function gotoAthenaWorkgroups(): Promise<void> {
   await navigateHash("#/athena/workgroups");
   await waitDisplayed(T("workgroups-heading"));
+// --- MSK navigation (R92-R93) ------------------------------------------------
+
+export async function gotoMskDashboard(): Promise<void> {
+  await navigateHash("#/msk");
+  await waitDisplayed(T("msk-dashboard-heading"));
+}
+
+export async function gotoClusters(): Promise<void> {
+  await navigateHash("#/msk/clusters");
+  await waitDisplayed(T("clusters-heading"));
+}
+
+export async function gotoClusterDetail(name: string): Promise<void> {
+  await navigateHash(`#/msk/clusters/${encodeURIComponent(name)}`);
+  await waitDisplayed(T("cluster-detail-heading"));
 }
 
 export { $, $$, browser, expect };
